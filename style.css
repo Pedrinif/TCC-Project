@@ -1,0 +1,212 @@
+/* ============================================================
+   OptiGraph — Estilos Globais
+   Otimização de Fluxo em Redes Logísticas Industriais
+   ============================================================ */
+
+/* Fonte moderna via Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+/* Reset e base */
+html, body, [class*="css"] {
+  font-family: 'Inter', sans-serif !important;
+}
+
+/* Fundo principal */
+.stApp {
+  background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #0d1117 100%);
+  color: #e6edf3;
+}
+
+/* Sidebar */
+[data-testid="stSidebar"] {
+  background: linear-gradient(180deg, #161b22 0%, #0d1117 100%);
+  border-right: 1px solid #30363d;
+}
+[data-testid="stSidebar"] .stMarkdown h1,
+[data-testid="stSidebar"] .stMarkdown h2,
+[data-testid="stSidebar"] .stMarkdown h3 {
+  color: #58a6ff !important;
+}
+
+/* Cards de métricas customizados */
+.metric-card {
+  background: linear-gradient(145deg, #1c2128, #21262d);
+  border: 1px solid #30363d;
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 16px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+.metric-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+}
+.metric-card.blue::before   { background: linear-gradient(90deg, #58a6ff, #1f6feb); }
+.metric-card.green::before  { background: linear-gradient(90deg, #3fb950, #2ea043); }
+.metric-card.orange::before { background: linear-gradient(90deg, #d29922, #bb8009); }
+.metric-card.red::before    { background: linear-gradient(90deg, #f85149, #da3633); }
+.metric-card.purple::before { background: linear-gradient(90deg, #bc8cff, #8957e5); }
+
+.metric-card:hover {
+  border-color: #58a6ff55;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.metric-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: #8b949e;
+  margin-bottom: 8px;
+}
+.metric-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: #e6edf3;
+  line-height: 1;
+  font-family: 'JetBrains Mono', monospace;
+}
+.metric-delta {
+  font-size: 12px;
+  margin-top: 6px;
+  color: #8b949e;
+}
+.metric-delta.good { color: #3fb950; }
+.metric-delta.warn { color: #d29922; }
+.metric-delta.bad  { color: #f85149; }
+
+/* Seções com título */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 28px 0 16px 0;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #21262d;
+}
+.section-header h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #e6edf3;
+  margin: 0;
+  letter-spacing: 0.3px;
+}
+.section-badge {
+  background: #1f6feb22;
+  border: 1px solid #1f6feb44;
+  color: #58a6ff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  text-transform: uppercase;
+}
+
+/* Banner de gargalo */
+.bottleneck-banner {
+  background: linear-gradient(135deg, #3d1a1a, #2d0f0f);
+  border: 1px solid #f8514955;
+  border-left: 4px solid #f85149;
+  border-radius: 8px;
+  padding: 14px 20px;
+  margin: 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  animation: pulse-red 2s infinite;
+}
+@keyframes pulse-red {
+  0%, 100% { box-shadow: 0 0 0 0 #f8514900; }
+  50%       { box-shadow: 0 0 12px 2px #f8514933; }
+}
+.bottleneck-banner .icon { font-size: 22px; }
+.bottleneck-banner .text { color: #ffa198; font-size: 13px; font-weight: 500; }
+
+/* Banner OK */
+.ok-banner {
+  background: linear-gradient(135deg, #0d2a1a, #0a1f12);
+  border: 1px solid #3fb95055;
+  border-left: 4px solid #3fb950;
+  border-radius: 8px;
+  padding: 14px 20px;
+  margin: 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ok-banner .text { color: #7ee787; font-size: 13px; font-weight: 500; }
+
+/* Iframe do grafo */
+.graph-container {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+/* Títulos principais */
+.main-title {
+  text-align: center;
+  padding: 24px 0 8px 0;
+}
+.main-title h1 {
+  font-size: 28px;
+  font-weight: 700;
+  background: linear-gradient(90deg, #58a6ff, #bc8cff, #3fb950);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0;
+}
+.main-title p {
+  color: #8b949e;
+  font-size: 13px;
+  margin: 6px 0 0 0;
+}
+
+/* Divider */
+hr { border-color: #21262d !important; }
+
+/* Ajustes do slider */
+.stSlider [data-testid="stTickBarMax"],
+.stSlider [data-testid="stTickBarMin"] { color: #8b949e; }
+
+/* Botão de simulação */
+.stButton > button {
+  width: 100%;
+  background: linear-gradient(135deg, #1f6feb, #388bfd);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.4px;
+  padding: 12px;
+  transition: all 0.2s ease;
+  margin-top: 8px;
+}
+.stButton > button:hover {
+  background: linear-gradient(135deg, #388bfd, #58a6ff);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px #1f6feb55;
+}
+
+/* Complexidade badge inline */
+.complexity-tag {
+  display: inline-block;
+  background: #21262d;
+  border: 1px solid #30363d;
+  color: #d2a8ff;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 4px;
+  margin-left: 6px;
+}
