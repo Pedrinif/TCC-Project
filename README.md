@@ -1,8 +1,8 @@
 # ⚡ OptiGraph
 ### Otimização de Fluxo em Redes Logísticas Industriais
 
-> **Pedro Nassif — Trabalho de Conclusão de Curso**  
-> Pesquisa Operacional · Teoria dos Grafos · Simulação de Eventos Discretos
+> **Pedro Nassif — Trabalho de Graduação (TG)**  
+> Pesquisa Operacional · Teoria dos Grafos · Simulação de Eventos Discretos (DES)
 
 ---
 
@@ -14,13 +14,8 @@ No Mac: pressione **⌘ + Espaço**, digite **Terminal** e aperte Enter.
 ### Passo 2 — Cole esse comando e aperte Enter
 
 ```bash
-streamlit run ~/Desktop/tcc/app.py
+cd /Users/pedronassif/Documents/Projetos/TCC-Project && .venv/bin/streamlit run app.py
 ```
-
-> Se der erro "command not found", use esse comando alternativo:
-> ```bash
-> /Users/pedronassif/Library/Python/3.9/bin/streamlit run ~/Desktop/tcc/app.py
-> ```
 
 ### Passo 3 — Abra o navegador
 
@@ -46,120 +41,44 @@ Volte no Terminal e pressione **Ctrl + C**.
 
 ### Barra lateral (esquerda)
 
-Você vai ver dois controles deslizantes:
+**1. 🗺️ Topologia do Grafo G=(V,E)**
+- Escolha uma das 3 topologias disponíveis:
 
-**1. Volume Total de Paletes**
+| Topologia | Nós | Arestas | Descrição |
+|-----------|-----|---------|-----------|
+| 🔹 **Simples** | 4 | 3 | Doca → Triagem → 2 Estoques |
+| 🔷 **Múltiplas Docas** | 6 | 5 | 2 Docas → Hub Central → 3 Estoques |
+| 🔶 **Pipeline** | 5 | 4 | Doca → Inspeção → Triagem → 2 Estoques |
+
+**2. 📦 Volume Total de Paletes**
 - Controla quantos paletes serão simulados (de 10 a 1.000).
-- **Quanto maior o número → mais carga no sistema → mais chance de gargalo.**
-- Exemplo: coloque **300** para estressar o sistema.
 
-**2. Capacidade c(Doca → Triagem)**
-- Define o limite máximo de fluxo na aresta crítica do grafo.
-- **Quanto menor esse número → mais fácil de criar gargalo.**
-- Exemplo: coloque **100** com volume 300 → gargalo garantido.
-
-**Dica rápida para ver o gargalo:**
-| Volume | Capacidade | Resultado |
-|--------|-----------|-----------|
-| 150 | 200 | ✅ Sistema normal |
-| 300 | 100 | 🔴 Gargalo ativo |
-| 500 | 50 | 🚨 Fila enorme |
+**3. 🔗 Capacidade da Aresta Crítica**
+- Define o limite máximo de fluxo na aresta crítica de cada preset.
 
 ---
 
-### Botão "▶ Executar Simulação"
-
-Depois de ajustar os sliders, clique neste botão.  
-Aguarde alguns segundos (uma animação de carregamento aparece).
-
----
-
-### O que aparece depois de executar
-
-**🟡 Banner no topo:**
-- Vermelho = gargalo detectado na aresta Doca → Triagem
-- Verde = sistema operou dentro da capacidade
-
-**Cards — Visão Operacional:**
-| Card | O que significa |
-|------|----------------|
-| Paletes Entregues | Total de paletes que passaram pelo sistema |
-| Paletes com Espera | Quantos ficaram presos na fila da Triagem |
-| Tempo Médio na Fila | Média de tempo que cada palete esperou |
-| Tempo Máximo de Espera | O pior caso — palete que ficou mais tempo esperando |
-
-**Cards — Visão Estrutural (foco do TCC):**
-| Card | O que significa |
-|------|----------------|
-| Tempo de Execução | Quantos milissegundos o algoritmo demorou para rodar |
-| Pico de RAM | Quanto de memória o programa consumiu no pico |
-| Throughput | Quantos paletes foram processados por milissegundo |
-
----
-
-### O Grafo (parte de baixo da tela)
-
-Mostra o mapa do sistema logístico com 4 nós conectados:
+## 📁 Estrutura de Diretórios (Modularizada)
 
 ```
-🚛 Doca → 🔀 Triagem → 📦 Estoque A
-                     → 📦 Estoque B
-```
-
-**Cores das arestas (setas):**
-- 🔵 **Azul** → fluxo normal, dentro da capacidade
-- 🔴 **Vermelho** → gargalo! O fluxo atingiu o limite
-
-**Interações no grafo:**
-- 🖱️ **Scroll** → zoom in/out
-- 🖱️ **Clicar e arrastar** → mover nós
-- 🖱️ **Passar o mouse** em cima de um nó ou seta → ver detalhes
-
----
-
-## 🔁 Fluxo de uso resumido
-
-```
-1. Abrir Terminal
-      ↓
-2. Rodar: streamlit run ~/Desktop/tcc/app.py
-      ↓
-3. Abrir http://localhost:8501 no navegador
-      ↓
-4. Ajustar os sliders na sidebar
-      ↓
-5. Clicar em ▶ Executar Simulação
-      ↓
-6. Analisar os cards e o grafo
-      ↓
-7. Mudar os sliders e executar de novo para comparar
+TCC-Project/
+├── app.py                  # Ponto de entrada (UI Streamlit & Roteamento)
+├── style.css               # Estilos CSS customizados (Premium UI)
+├── requirements.txt        # Dependências atualizadas (com openpyxl)
+├── README.md               # Este guia
+└── src/
+    ├── __init__.py         # Inicializador do pacote
+    ├── domain.py           # Dataclasses de domínio (EstacaoTrabalho, Aresta, ResultadoSimulacao)
+    ├── rede.py             # Grafo (NetworkX, Edmonds-Karp/Corte Mínimo, Caminhos)
+    ├── simulacao.py        # Simulação estocástica (SimPy + Poisson + Normal)
+    └── analise.py          # Relatórios estatísticos e Exportação Excel (.xlsx)
 ```
 
 ---
 
-## ⚠️ Problemas comuns
+## 💾 Relatório Multi-Abas em Excel (.xlsx)
 
-| Problema | Solução |
-|----------|---------|
-| "command not found: streamlit" | Use o comando alternativo com caminho completo (ver Passo 2) |
-| Tela abrindo no Live Server (mostra só o arquivo) | Não use Live Server. Acesse pelo Terminal + `http://localhost:8501` |
-| Página em branco no navegador | Aguarde 5 segundos e recarregue com **⌘ + R** |
-| Precisa fechar o programa | Pressione **Ctrl + C** no Terminal |
-| Quer abrir de novo depois de fechar | Repita os Passos 1 a 3 |
-
----
-
-## 📁 Arquivos do projeto
-
-```
-tcc/
-├── app.py       ← código-fonte completo (não edite sem querer)
-└── README.md    ← este guia
-```
-
----
-
-## 📚 Sobre o projeto
-
-Este dashboard simula paletes percorrendo um sistema logístico modelado como grafo G=(V,E).  
-O objetivo é demonstrar como restrições de capacidade em arestas criam **gargalos mensuráveis**, validando conceitos de **Teoria dos Grafos** e **Pesquisa Operacional** de forma visual e interativa.
+O sistema conta com um analisador em Pandas que permite gerar relatórios consolidados em Excel:
+- **Resumo Geral**: Métricas operacionais agregadas, gargalo estrutural teórico e throughput computacional.
+- **Desempenho por Estação**: Taxas de utilização, tempo máximo de fila e tempo médio de processamento de cada estação de trabalho.
+- **Logs de Eventos**: Log de eventos bruto para auditoria de tempo e filas.
