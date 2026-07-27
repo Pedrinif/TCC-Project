@@ -6,7 +6,6 @@
 ================================================================================
 """
 
-import math
 import pandas as pd
 from typing import Optional, List, Dict, Any
 
@@ -22,6 +21,10 @@ from src.ui import (
     render_section_header,
     _render_grafo,
     _render_analise_comparativa,
+    _render_histograma_espera,
+    _render_utilizacao_estacoes,
+    _render_evolucao_filas,
+    _render_comparativo_topologias,
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -100,6 +103,14 @@ def main():
         )
         st.markdown("---")
 
+        # Seed do gerador aleatório
+        st.markdown("#### 🌱 Seed do Gerador Aleatório")
+        st.markdown("<small style='color:#8b949e'>Altere a seed para verificar a estabilidade estocástica dos resultados.</small>", unsafe_allow_html=True)
+        seed_valor = st.slider(
+            label="Seed RNG", min_value=1, max_value=100, value=42, step=1,
+        )
+        st.markdown("---")
+
         # Razão V/C (Box vermelha ou verde)
         razao = volume_paletes / capacidade_aresta
         if razao > 1.0:
@@ -144,7 +155,7 @@ def main():
     if executar:
         with st.spinner("⚙️ Executando simulação DES..."):
             linha = LinhaProducao(preset=preset_selecionado, cap_aresta_critica=capacidade_aresta)
-            motor = MotorDES(linha, volume_paletes)
+            motor = MotorDES(linha, volume_paletes, seed=seed_valor)
             resultado = motor.executar()
 
             st.session_state.resultado = resultado
@@ -194,6 +205,32 @@ def main():
     else:
         st.markdown(f'<div class="ok-banner"><span class="icon">✅</span><span class="text"><b>Fluxo estável</b> — A aresta {aresta_crit[0]} → {aresta_crit[1]} operou dentro da capacidade.</span></div>', unsafe_allow_html=True)
 
+    # Seção 0: Fluxo Máximo Teórico (Edmonds-Karp)
+    render_section_header("🔬", "Fluxo Máximo Teórico — Edmonds-Karp & Corte Mínimo", "TEORIA DOS GRAFOS")
+    col_fm1, col_fm2, col_fm3 = st.columns(3)
+    with col_fm1:
+        render_metric_card(
+            "Fluxo Máximo Teórico",
+            f"{fluxo_maximo_teorico:.0f}",
+            "Edmonds-Karp (NetworkX)",
+            "good",
+        )
+    with col_fm2:
+        render_metric_card(
+            "Arestas do Corte Mínimo",
+            gargalo_teorico_str,
+            f"{len(arestas_corte)} aresta(s) no corte",
+            "warn" if len(arestas_corte) > 0 else "good",
+        )
+    with col_fm3:
+        razao_fluxo = (resultado.paletes_entregues / fluxo_maximo_teorico * 100) if fluxo_maximo_teorico > 0 else 0
+        render_metric_card(
+            "Razão Fluxo Real / Teórico",
+            f"{razao_fluxo:.1f}%",
+            f"{resultado.paletes_entregues} paletes / {fluxo_maximo_teorico:.0f} cap. teórica",
+            "bad" if razao_fluxo > 100 else "good",
+        )
+
     # Seção 1: Operacional
     render_section_header("🏭", "Visão Operacional", "MÉTRICAS DE FLUXO")
     col1, col2, col3, col4 = st.columns(4)
@@ -233,7 +270,7 @@ def main():
                     f"{capacidade_aresta}",
                     f"{razao:.2f}x",
                     "SIM ⚠️" if resultado.gargalo_ativado else "NÃO",
-                    "42 (reprodutível)"
+                    f"{seed_valor} (reprodutível)"
                 ]
             })
             st.table(df_params)
@@ -252,11 +289,25 @@ def main():
             })
             st.table(df_perf)
 
-    # Seção 4: Comparativa (Batch)
+    # Seção 4: Histograma de Tempos de Espera
+    _render_histograma_espera(resultado.tempos_espera)
+
+    # Seção 5: Utilização por Estação
+    analisador_temp = AnalisadorResultados(logs_detalhados, linha, resultado)
+    estatisticas = analisador_temp.obter_estatisticas()
+    _render_utilizacao_estacoes(estatisticas, linha)
+
+    # Seção 6: Evolução Temporal das Filas
+    _render_evolucao_filas(logs_detalhados, linha)
+
+    # Seção 7: Comparativo Entre Topologias
+    _render_comparativo_topologias(volume_paletes, capacidade_aresta, seed_valor)
+
+    # Seção 8: Comparativa (Batch)
     if resultados_batch:
         _render_analise_comparativa(resultados_batch, volume_paletes, preset_selecionado)
 
-    # Seção 5: Exportação (Excel & CSV)
+    # Seção 9: Exportação (Excel & CSV)
     render_section_header("💾", "Exportar Relatórios Industriais", "EXPORTAR")
     analisador = AnalisadorResultados(logs_detalhados, linha, resultado)
     
@@ -279,10 +330,10 @@ def main():
             mime="text/csv"
         )
 
-    # Seção 6: Grafo
+    # Seção 8: Grafo
     _render_grafo(linha, resultado)
 
-    # Seção 7: Representação do Grafo — Lista de Adjacência G=(V,E)
+    # Seção 9: Representação do Grafo — Lista de Adjacência G=(V,E)
     with st.expander("📋 Representação do Grafo — Lista de Adjacência G=(V,E)"):
         st.markdown("**Vértices V:**")
         nos_data = [

@@ -1,4 +1,5 @@
 from typing import Dict, List, Optional, Any
+import pandas as pd
 import streamlit as st
 import altair as alt
 import streamlit.components.v1 as components
@@ -256,3 +257,258 @@ def _render_analise_comparativa(resultados_batch: List[Dict[str, Any]], volume: 
             .configure_axis(labelColor="#8b949e", titleColor="#c9d1d9", gridColor="#21262d", domainColor="#30363d")
         )
         st.altair_chart(chart2, use_container_width=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# HISTOGRAMA DE TEMPOS DE ESPERA
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _render_histograma_espera(tempos_espera: List[float]):
+    render_section_header("📊", "Distribuição dos Tempos de Espera", "HISTOGRAMA")
+
+    if not tempos_espera or all(t <= 0.01 for t in tempos_espera):
+        st.markdown(
+            '<div style="text-align:center;padding:20px;color:#3fb950">'
+            '✅ Nenhum tempo de espera significativo registrado — sistema fluiu sem filas.</div>',
+            unsafe_allow_html=True,
+        )
+        return
+
+    df = pd.DataFrame({"tempo_espera": tempos_espera})
+
+    chart = (
+        alt.Chart(df)
+        .mark_bar(
+            color=alt.Gradient(
+                gradient="linear",
+                stops=[
+                    alt.GradientStop(color="#f8514988", offset=0),
+                    alt.GradientStop(color="#f85149", offset=1),
+                ],
+                x1=0, x2=0, y1=1, y2=0,
+            ),
+            cornerRadiusTopLeft=3,
+            cornerRadiusTopRight=3,
+        )
+        .encode(
+            x=alt.X("tempo_espera:Q", bin=alt.Bin(maxbins=25), title="Tempo de Espera (u.t.)"),
+            y=alt.Y("count()", title="Frequência"),
+            tooltip=[
+                alt.Tooltip("tempo_espera:Q", bin=alt.Bin(maxbins=25), title="Faixa"),
+                alt.Tooltip("count()", title="Qtd. Paletes"),
+            ],
+        )
+        .properties(height=300)
+        .configure_view(strokeWidth=0)
+        .configure_axis(
+            labelColor="#8b949e", titleColor="#c9d1d9",
+            gridColor="#21262d", domainColor="#30363d",
+        )
+    )
+    st.altair_chart(chart, use_container_width=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# GRÁFICO DE UTILIZAÇÃO POR ESTAÇÃO
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _render_utilizacao_estacoes(estatisticas: Dict[str, Dict[str, Any]], linha):
+    render_section_header("🏗️", "Utilização por Estação de Trabalho", "BAR CHART")
+
+    if not estatisticas:
+        st.markdown(
+            '<div style="text-align:center;padding:20px;color:#8b949e">'
+            'Sem dados de utilização disponíveis.</div>',
+            unsafe_allow_html=True,
+        )
+        return
+
+    data = []
+    for est_id, metrica in estatisticas.items():
+        rotulo = linha.nos[est_id].rotulo.replace("\n", " ")
+        util = metrica["utilizacao"]
+        cor = "#3fb950" if util < 50 else ("#d29922" if util < 80 else "#f85149")
+        data.append({
+            "estacao": rotulo,
+            "utilizacao": round(util, 2),
+            "cor": cor,
+        })
+
+    df = pd.DataFrame(data)
+
+    chart = (
+        alt.Chart(df)
+        .mark_bar(cornerRadiusTopRight=4, cornerRadiusBottomRight=4)
+        .encode(
+            y=alt.Y("estacao:N", title=None, sort="-x",
+                     axis=alt.Axis(labelColor="#c9d1d9", labelFontSize=12)),
+            x=alt.X("utilizacao:Q", title="Utilização (%)",
+                     scale=alt.Scale(domain=[0, 100])),
+            color=alt.Color("cor:N", scale=None),
+            tooltip=[
+                alt.Tooltip("estacao:N", title="Estação"),
+                alt.Tooltip("utilizacao:Q", title="Utilização (%)", format=".1f"),
+            ],
+        )
+        .properties(height=max(180, len(data) * 50))
+        .configure_view(strokeWidth=0)
+        .configure_axis(
+            labelColor="#8b949e", titleColor="#c9d1d9",
+            gridColor="#21262d", domainColor="#30363d",
+        )
+    )
+    st.altair_chart(chart, use_container_width=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# EVOLUÇÃO TEMPORAL DAS FILAS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _render_evolucao_filas(logs_detalhados: List[Dict[str, Any]], linha):
+    render_section_header("⏱️", "Evolução Temporal das Filas", "TIMELINE")
+
+    if not logs_detalhados:
+        st.markdown(
+            '<div style="text-align:center;padding:20px;color:#8b949e">'
+            'Sem logs disponíveis.</div>',
+            unsafe_allow_html=True,
+        )
+        return
+
+    df = pd.DataFrame(logs_detalhados)
+    df_filas = df[df["evento"] == "chegada_fila"].copy()
+
+    if df_filas.empty:
+        return
+
+    # Arredondar tempo em intervalos pra suavizar o gráfico
+    df_filas["tempo_bin"] = (df_filas["tempo"] * 2).round() / 2
+
+    df_agrupado = (
+        df_filas.groupby(["tempo_bin", "estacao"])["tamanho_fila"]
+        .max()
+        .reset_index()
+        .rename(columns={"tempo_bin": "tempo", "tamanho_fila": "fila"})
+    )
+
+    # Mapear IDs para nomes legíveis
+    mapa_nomes = {nid: n.rotulo.replace("\n", " ") for nid, n in linha.nos.items()}
+    df_agrupado["nome_estacao"] = df_agrupado["estacao"].map(mapa_nomes)
+
+    # Cores por tipo de estação
+    cores_tipo = {
+        "doca": "#1f6feb", "triagem": "#d29922",
+        "estoque": "#3fb950", "inspecao": "#f0883e",
+    }
+    mapa_cores = {}
+    for nid, no in linha.nos.items():
+        nome = mapa_nomes[nid]
+        mapa_cores[nome] = cores_tipo.get(no.tipo, "#8b949e")
+
+    nomes_estacoes = list(mapa_cores.keys())
+    cores_lista = [mapa_cores[n] for n in nomes_estacoes]
+
+    chart = (
+        alt.Chart(df_agrupado)
+        .mark_line(strokeWidth=2, interpolate="monotone")
+        .encode(
+            x=alt.X("tempo:Q", title="Tempo Simulado (u.t.)"),
+            y=alt.Y("fila:Q", title="Tamanho da Fila"),
+            color=alt.Color(
+                "nome_estacao:N",
+                title="Estação",
+                scale=alt.Scale(domain=nomes_estacoes, range=cores_lista),
+            ),
+            tooltip=[
+                alt.Tooltip("tempo:Q", title="Tempo", format=".1f"),
+                alt.Tooltip("nome_estacao:N", title="Estação"),
+                alt.Tooltip("fila:Q", title="Fila"),
+            ],
+        )
+        .properties(height=350)
+        .configure_view(strokeWidth=0)
+        .configure_axis(
+            labelColor="#8b949e", titleColor="#c9d1d9",
+            gridColor="#21262d", domainColor="#30363d",
+        )
+        .configure_legend(
+            labelColor="#c9d1d9", titleColor="#8b949e",
+            orient="bottom", columns=3,
+        )
+    )
+    st.altair_chart(chart, use_container_width=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# COMPARATIVO ENTRE TOPOLOGIAS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _render_comparativo_topologias(volume: int, capacidade: int, seed: int):
+    from src.simulacao import MotorDES
+
+    render_section_header("🔄", "Comparativo Automático — 3 Topologias", "CROSS-TOPOLOGY")
+
+    presets = ["simples", "multiplas_docas", "pipeline"]
+    nomes = {
+        "simples": "🔹 Simples",
+        "multiplas_docas": "🔷 Múltiplas Docas",
+        "pipeline": "🔶 Pipeline",
+    }
+
+    dados = []
+    for preset in presets:
+        from src.rede import LinhaProducao
+        linha = LinhaProducao(preset=preset, cap_aresta_critica=capacidade)
+        motor = MotorDES(linha, volume, seed=seed)
+        res = motor.executar()
+        fluxo_max, corte = linha.calcular_corte_minimo()
+
+        dados.append({
+            "Topologia": nomes[preset],
+            "Nós": len(linha.nos),
+            "Arestas": len(linha.arestas),
+            "Gargalo": "⚠️ SIM" if res.gargalo_ativado else "✅ NÃO",
+            "Espera Média (u.t.)": f"{res.tempo_medio_espera:.3f}",
+            "Espera Máx (u.t.)": f"{res.tempo_max_espera:.3f}",
+            "% com Espera": f"{(res.paletes_com_espera / res.paletes_entregues * 100):.1f}%",
+            "Fluxo Máx. Teórico": f"{fluxo_max:.0f}",
+            "Exec. (ms)": f"{res.tempo_execucao_seg * 1000:.1f}",
+        })
+
+    df = pd.DataFrame(dados)
+    st.table(df)
+
+    # Bar chart comparativo — espera média
+    dados_chart = []
+    for d in dados:
+        dados_chart.append({
+            "topologia": d["Topologia"],
+            "espera_media": float(d["Espera Média (u.t.)"]),
+        })
+
+    df_chart = pd.DataFrame(dados_chart)
+
+    chart = (
+        alt.Chart(df_chart)
+        .mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4)
+        .encode(
+            x=alt.X("topologia:N", title=None,
+                     axis=alt.Axis(labelColor="#c9d1d9", labelFontSize=12)),
+            y=alt.Y("espera_media:Q", title="Tempo Médio de Espera (u.t.)"),
+            color=alt.Color("topologia:N", scale=alt.Scale(
+                domain=[nomes[p] for p in presets],
+                range=["#1f6feb", "#388bfd", "#d29922"],
+            ), legend=None),
+            tooltip=[
+                alt.Tooltip("topologia:N", title="Topologia"),
+                alt.Tooltip("espera_media:Q", title="Espera Média", format=".3f"),
+            ],
+        )
+        .properties(height=280)
+        .configure_view(strokeWidth=0)
+        .configure_axis(
+            labelColor="#8b949e", titleColor="#c9d1d9",
+            gridColor="#21262d", domainColor="#30363d",
+        )
+    )
+    st.altair_chart(chart, use_container_width=True)
