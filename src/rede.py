@@ -9,14 +9,14 @@ SEM_LIMITE = 999
 # A aresta crítica fica com capacidade None e recebe o valor escolhido na tela.
 PRESETS = {
     "simples": {
-        "nome": "🔹 Simples — Fluxo Linear",
+        "nome": "Simples — Fluxo Linear",
         "descricao": "Doca → Triagem → 2 Estoques (4 nós, 3 arestas). "
                      "Topologia clássica com aresta crítica Doca→Triagem.",
         "nos": [
-            No("Doca_Recebimento", "🚛 Doca\nRecebimento", "doca", 2.0, 100, "#1f6feb", -350, 0),
-            No("Area_Triagem", "🔀 Área de\nTriagem", "triagem", 3.5, 20, "#d29922", 0, 0),
-            No("Estoque_A", "📦 Estoque A\n(Giro Alto)", "estoque", 1.5, 500, "#3fb950", 300, -150),
-            No("Estoque_B", "📦 Estoque B\n(Giro Baixo)", "estoque", 1.5, 500, "#3d8b40", 300, 150),
+            No("Doca_Recebimento", "Doca\nRecebimento", "doca", 2.0, 100, "#1f6feb", -350, 0),
+            No("Area_Triagem", "Área de\nTriagem", "triagem", 3.5, 20, "#d29922", 0, 0),
+            No("Estoque_A", "Estoque A\n(Giro Alto)", "estoque", 1.5, 500, "#3fb950", 300, -150),
+            No("Estoque_B", "Estoque B\n(Giro Baixo)", "estoque", 1.5, 500, "#3d8b40", 300, 150),
         ],
         "arestas": [
             ("Doca_Recebimento", "Area_Triagem", None, 1.0),
@@ -26,16 +26,16 @@ PRESETS = {
         "fonte": "Doca_Recebimento",
     },
     "multiplas_docas": {
-        "nome": "🔷 Múltiplas Docas — Hub Central",
+        "nome": "Múltiplas Docas — Hub Central",
         "descricao": "2 Docas → Hub Triagem → 3 Estoques (6 nós, 5 arestas). "
                      "Simula recebimento paralelo convergindo em um hub central.",
         "nos": [
-            No("Doca_Norte", "🚛 Doca Norte\n(Principal)", "doca", 2.0, 100, "#1f6feb", -400, -120),
-            No("Doca_Sul", "🚛 Doca Sul\n(Secundária)", "doca", 2.5, 80, "#388bfd", -400, 120),
-            No("Hub_Triagem", "🔀 Hub Central\nTriagem", "triagem", 3.5, 20, "#d29922", 0, 0),
-            No("Estoque_A", "📦 Estoque A\n(Perecíveis)", "estoque", 1.5, 400, "#3fb950", 350, -180),
-            No("Estoque_B", "📦 Estoque B\n(Geral)", "estoque", 1.5, 500, "#2ea043", 350, 0),
-            No("Estoque_C", "📦 Estoque C\n(Volumosos)", "estoque", 2.0, 300, "#3d8b40", 350, 180),
+            No("Doca_Norte", "Doca Norte\n(Principal)", "doca", 2.0, 100, "#1f6feb", -400, -120),
+            No("Doca_Sul", "Doca Sul\n(Secundária)", "doca", 2.5, 80, "#388bfd", -400, 120),
+            No("Hub_Triagem", "Hub Central\nTriagem", "triagem", 3.5, 20, "#d29922", 0, 0),
+            No("Estoque_A", "Estoque A\n(Perecíveis)", "estoque", 1.5, 400, "#3fb950", 350, -180),
+            No("Estoque_B", "Estoque B\n(Geral)", "estoque", 1.5, 500, "#2ea043", 350, 0),
+            No("Estoque_C", "Estoque C\n(Volumosos)", "estoque", 2.0, 300, "#3d8b40", 350, 180),
         ],
         "arestas": [
             ("Doca_Norte", "Hub_Triagem", None, 1.0),
@@ -47,15 +47,15 @@ PRESETS = {
         "fonte": "Doca_Norte",
     },
     "pipeline": {
-        "nome": "🔶 Pipeline com Inspeção",
+        "nome": "Pipeline com Inspeção",
         "descricao": "Doca → Inspeção → Triagem → 2 Estoques (5 nós, 4 arestas). "
                      "Cadeia linear com etapa de inspeção de qualidade.",
         "nos": [
-            No("Doca_Recebimento", "🚛 Doca\nRecebimento", "doca", 2.0, 100, "#1f6feb", -500, 0),
-            No("Inspecao_Qualidade", "🔍 Inspeção\nQualidade", "inspecao", 4.0, 15, "#f0883e", -180, 0),
-            No("Area_Triagem", "🔀 Área de\nTriagem", "triagem", 3.0, 25, "#d29922", 140, 0),
-            No("Estoque_A", "📦 Estoque A\n(Aprovados)", "estoque", 1.5, 500, "#3fb950", 420, -130),
-            No("Estoque_B", "📦 Estoque B\n(Reprocesso)", "estoque", 2.0, 200, "#da3633", 420, 130),
+            No("Doca_Recebimento", "Doca\nRecebimento", "doca", 2.0, 100, "#1f6feb", -500, 0),
+            No("Inspecao_Qualidade", "Inspeção\nQualidade", "inspecao", 4.0, 15, "#f0883e", -180, 0),
+            No("Area_Triagem", "Área de\nTriagem", "triagem", 3.0, 25, "#d29922", 140, 0),
+            No("Estoque_A", "Estoque A\n(Aprovados)", "estoque", 1.5, 500, "#3fb950", 420, -130),
+            No("Estoque_B", "Estoque B\n(Reprocesso)", "estoque", 2.0, 200, "#da3633", 420, 130),
         ],
         "arestas": [
             ("Doca_Recebimento", "Inspecao_Qualidade", SEM_LIMITE, 1.0),

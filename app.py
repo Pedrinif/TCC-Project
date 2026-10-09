@@ -17,9 +17,9 @@ from src.simulacao import MotorDES, executar_analise_comparativa
 from src.analise import AnalisadorResultados
 from src import ui
 
-st.set_page_config(page_title="ECOMUP Project", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="ECOMUP Project", page_icon=":material/hub:", layout="wide")
 with open("style.css") as f:
-    ui.html(f"<style>{f.read()}</style>")
+    ui.html(f"<style>{ui.css_do_tema()}{f.read()}</style>")
 
 
 def cabecalho():
@@ -43,7 +43,8 @@ def passo(numero: int, titulo: str, ajuda: str = ""):
 def barra_lateral() -> dict:
     """Monta o painel de controle e devolve tudo que o usuário escolheu."""
     with st.sidebar:
-        ui.html('<div class="sidebar-title">⚙️ Painel de Controle</div>')
+        ui.html(f'<div class="sidebar-title">{ui.ico("tune")} Painel de Controle</div>')
+        ui.botao_tema()
 
         passo(1, "Layout do armazém", "Qual configuração de estações será simulada.")
         preset = st.selectbox("Topologia", list(PRESETS), format_func=lambda p: PRESETS[p]["nome"],
@@ -51,30 +52,28 @@ def barra_lateral() -> dict:
         ui.html(f'<div class="topology-info">{PRESETS[preset]["descricao"]}</div>')
 
         passo(2, "Carga e capacidade", "Volume maior que a capacidade induz o gargalo.")
-        volume = st.slider("📦 Volume de paletes (N)", 10, 1000, 150, 10)
-        capacidade = st.slider("🔗 Capacidade da aresta crítica", 10, 500, 100, 10,
+        volume = st.slider(":material/inventory_2: Volume de paletes (N)", 10, 1000, 150, 10)
+        capacidade = st.slider(":material/link: Capacidade da aresta crítica", 10, 500, 100, 10,
                                help="c(u,v): quantos paletes a aresta crítica suporta.")
 
         # aviso antecipado: se chega mais palete do que a aresta aguenta, vai ter gargalo
         razao = volume / capacidade
-        classe, icone, texto = (("bottleneck-banner", "⚠️", "Gargalo previsto — vai formar fila.")
-                                if razao > 1 else ("ok-banner", "✅", "Sistema deve operar estável."))
-        ui.html(f'<div class="{classe} compact"><span class="icon">{icone}</span><span class="text">'
-                f'Volume ÷ Capacidade = <b>{razao:.2f}×</b><br>{texto}</span></div>')
+        tipo, texto = ("bad", "Gargalo previsto — vai formar fila.") if razao > 1 else ("ok", "Sistema deve operar estável.")
+        ui.banner(tipo, f"Volume ÷ Capacidade = <b>{razao:.2f}×</b><br>{texto}", compacto=True)
 
         passo(3, "Rodar")
-        executar = st.button("▶ Executar Simulação", type="primary", width="stretch")
+        executar = st.button(":material/play_arrow: Executar Simulação", type="primary", width="stretch")
         ui.html('<div class="sidebar-divider"></div>')
 
-        with st.expander("🌱 Avançado — Seed aleatória"):
+        with st.expander(":material/casino: Avançado — Seed aleatória"):
             seed = st.slider("Seed", 1, 100, 42, help="Mesma seed gera sempre o mesmo resultado.")
 
-        with st.expander("📈 Análise de sensibilidade (batch)"):
+        with st.expander(":material/query_stats: Análise de sensibilidade (batch)"):
             st.caption("Repete a simulação para várias capacidades e gera curvas de saturação.")
             cap_min = st.number_input("Capacidade mínima", 5, 400, 10, 5)
             cap_max = st.number_input("Capacidade máxima", 10, 500, 200, 10)
             passo_cap = st.number_input("Passo", 5, 50, 10, 5)
-            executar_batch = st.button("▶ Executar Análise", width="stretch")
+            executar_batch = st.button(":material/play_arrow: Executar Análise", width="stretch")
 
     return dict(preset=preset, volume=volume, capacidade=capacidade, seed=seed,
                 executar=executar, executar_batch=executar_batch,
@@ -83,24 +82,25 @@ def barra_lateral() -> dict:
 
 def como_funciona():
     """Aba explicativa do projeto (serve de roteiro para a apresentação)."""
-    ui.html("""
+    ico = ui.ico
+    ui.html(f"""
     <div class="explain-grid">
-      <div class="explain-card"><div class="explain-icon">🎯</div><h4>O problema</h4>
+      <div class="explain-card"><div class="explain-icon">{ico("error")}</div><h4>O problema</h4>
         <p>Em um armazém, paletes chegam na doca, passam por triagem/inspeção e vão para o estoque.
         Se uma etapa tem capacidade menor que a demanda, forma-se <b>fila</b> — é o <b>gargalo</b>,
         que aumenta custo, tempo e desperdício.</p></div>
-      <div class="explain-card"><div class="explain-icon">🧠</div><h4>A solução</h4>
+      <div class="explain-card"><div class="explain-icon">{ico("psychology")}</div><h4>A solução</h4>
         <p>Modelamos o armazém como um <b>grafo</b> (estações = vértices, caminhos = arestas) e
         rodamos uma <b>simulação de eventos discretos</b> palete por palete, com chegadas e
         tempos aleatórios realistas.</p></div>
-      <div class="explain-card"><div class="explain-icon">📈</div><h4>O resultado</h4>
+      <div class="explain-card"><div class="explain-icon">{ico("trending_up")}</div><h4>O resultado</h4>
         <p>O sistema mostra <b>qual aresta é o gargalo</b>, quanto tempo os paletes esperam e
         <b>qual capacidade mínima</b> resolve o problema — antes de mexer na operação real.</p></div>
     </div>""")
 
     col_a, col_b = st.columns(2, gap="large")
     with col_a:
-        ui.titulo_secao("🔬", "As duas técnicas usadas", "BASE TEÓRICA")
+        ui.titulo_secao("science", "As duas técnicas usadas", "BASE TEÓRICA")
         st.markdown("""
 **1. Fluxo Máximo / Corte Mínimo (determinístico)** — algoritmo de *Edmonds-Karp* (via NetworkX).
 Só pela estrutura do grafo, calcula o máximo de paletes que a rede comporta e
@@ -114,19 +114,19 @@ Só pela estrutura do grafo, calcula o máximo de paletes que a rede comporta e
 A teoria diz *onde* está o gargalo; a simulação mostra *o impacto* dele.
         """)
     with col_b:
-        ui.titulo_secao("🧭", "Como usar em 3 passos", "GUIA RÁPIDO")
+        ui.titulo_secao("explore", "Como usar em 3 passos", "GUIA RÁPIDO")
         st.markdown("""
 1. **Escolha a topologia** do armazém na barra lateral.
 2. **Ajuste o volume de paletes e a capacidade** da aresta crítica.
    O indicador *Volume ÷ Capacidade* já avisa se vai formar gargalo.
-3. Clique em **▶ Executar Simulação** e navegue pelas abas.
+3. Clique em **:material/play_arrow: Executar Simulação** e navegue pelas abas.
 
 **Dica para a apresentação:** rode com capacidade bem baixa para mostrar o gargalo
 em vermelho, depois aumente para mostrar o sistema estável. A *análise de
 sensibilidade* gera a curva completa.
         """)
 
-    ui.titulo_secao("📖", "Glossário rápido", "TERMOS")
+    ui.titulo_secao("menu_book", "Glossário rápido", "TERMOS")
     st.dataframe(pd.DataFrame([
         ("Grafo G=(V,E)", "Representação da rede: V = estações, E = caminhos entre elas."),
         ("Capacidade c(u,v)", "Máximo de paletes que a aresta de u para v suporta."),
@@ -139,7 +139,7 @@ sensibilidade* gera a curva completa.
 
 
 def aba_resumo(resultado, linha, logs):
-    ui.titulo_secao("🏭", "Desempenho da Operação", "O QUE ACONTECEU",
+    ui.titulo_secao("factory", "Desempenho da Operação", "O QUE ACONTECEU",
                     "Quantos paletes passaram pela linha e quanto tempo esperaram na estação crítica.")
     pct, media, pior = resultado.pct_com_espera, resultado.tempo_medio_espera, resultado.tempo_max_espera
     c1, c2, c3, c4 = st.columns(4)
@@ -154,7 +154,7 @@ def aba_resumo(resultado, linha, logs):
     with c4:
         ui.card("Pior espera", f"{pior:.2f}", "u.t. — pior caso observado", "bad" if pior > 10 else "warn")
 
-    ui.titulo_secao("🔬", "Gargalo Teórico — Fluxo Máximo & Corte Mínimo", "TEORIA DOS GRAFOS",
+    ui.titulo_secao("science", "Gargalo Teórico — Fluxo Máximo & Corte Mínimo", "TEORIA DOS GRAFOS",
                     "Calculado só pela estrutura da rede (Edmonds-Karp): o limite de paletes que ela "
                     "suporta e qual aresta segura esse limite.")
     fluxo_max, corte = linha.calcular_corte_minimo()
@@ -175,7 +175,7 @@ def aba_resumo(resultado, linha, logs):
 
 def aba_rede(resultado, linha):
     ui.grafo(linha, resultado)
-    with st.expander("📋 Tabela do grafo — vértices e arestas"):
+    with st.expander(":material/table_chart: Tabela do grafo — vértices e arestas"):
         st.dataframe(pd.DataFrame([
             {"Vértice": no.id, "Tipo": no.tipo, "Capacidade": no.capacidade_interna,
              "T. processamento": f"{no.tempo_proc_base} min"}
@@ -183,13 +183,13 @@ def aba_rede(resultado, linha):
         ]), hide_index=True, width="stretch")
         st.dataframe(pd.DataFrame([
             {"Aresta": f"{u} → {v}", "Capacidade c(u,v)": a.capacidade, "Fluxo f(u,v)": a.fluxo_atual,
-             "Status": "🔴 Saturada" if (u, v) == linha.aresta_critica and resultado.gargalo_ativado else "✅ Normal"}
+             "Status": "Saturada" if (u, v) == linha.aresta_critica and resultado.gargalo_ativado else "Normal"}
             for (u, v), a in linha.arestas.items()
         ]), hide_index=True, width="stretch")
 
 
 def aba_tecnico(resultado, linha, logs, params):
-    ui.titulo_secao("⚡", "Desempenho Computacional", "FOCO DO TCC",
+    ui.titulo_secao("bolt", "Desempenho Computacional", "FOCO DO TCC",
                     "Quão rápido e leve é o simulador — mostra que a abordagem escala.")
     ms = resultado.tempo_execucao_seg * 1000
     c1, c2, c3 = st.columns(3)
@@ -206,13 +206,13 @@ def aba_tecnico(resultado, linha, logs, params):
                   params["seed"], "SIM" if resultado.gargalo_ativado else "NÃO"],
     }).astype(str), hide_index=True)
 
-    ui.titulo_secao("💾", "Exportar Relatórios", "EXPORTAR",
+    ui.titulo_secao("download", "Exportar Relatórios", "EXPORTAR",
                     "Excel com resumo, desempenho por estação e todos os eventos — bom para anexar no TCC.")
     nome = f"ecomup_{params['preset']}"
     c1, c2 = st.columns(2)
-    c1.download_button("⬇️ Relatório completo (.xlsx)", AnalisadorResultados(logs, linha, resultado).gerar_excel(),
+    c1.download_button(":material/download: Relatório completo (.xlsx)", AnalisadorResultados(logs, linha, resultado).gerar_excel(),
                        f"{nome}_relatorio.xlsx", width="stretch")
-    c2.download_button("⬇️ Logs de eventos (.csv)", pd.DataFrame(logs).to_csv(index=False).encode("utf-8"),
+    c2.download_button(":material/download: Logs de eventos (.csv)", pd.DataFrame(logs).to_csv(index=False).encode("utf-8"),
                        f"{nome}_logs.csv", "text/csv", width="stretch")
 
 
@@ -237,12 +237,12 @@ def main():
 
     # Antes da primeira execução: só a prévia do grafo e a explicação
     if "resultado" not in estado:
-        inicio, explicacao = st.tabs(["🏁 Início", "💡 Como funciona"])
+        inicio, explicacao = st.tabs([":material/home: Início", ":material/lightbulb: Como funciona"])
         with inicio:
-            ui.html("""
-            <div class="empty-state"><div class="empty-icon">📊</div><h3>Pronto para simular</h3>
-              <p>Configure os parâmetros na barra lateral e clique em <b>▶ Executar Simulação</b>.<br>
-              Abaixo está uma prévia do armazém escolhido. Primeira vez aqui? Veja <b>💡 Como funciona</b>.</p>
+            ui.html(f"""
+            <div class="empty-state"><div class="empty-icon">{ui.ico("monitoring")}</div><h3>Pronto para simular</h3>
+              <p>Configure os parâmetros na barra lateral e clique em <b>Executar Simulação</b>.<br>
+              Abaixo está uma prévia do armazém escolhido. Primeira vez aqui? Veja a aba <b>Como funciona</b>.</p>
             </div>""")
             ui.grafo(LinhaProducao(p["preset"], p["capacidade"]), None)
             if batch:
@@ -255,21 +255,20 @@ def main():
 
     if any(params[k] != p[k] for k in params):
         st.info("Os parâmetros mudaram. Os resultados abaixo são da última execução — "
-                "clique em **▶ Executar Simulação** para atualizar.", icon="ℹ️")
+                "clique em **Executar Simulação** para atualizar.", icon=":material/info:")
 
     # Veredito geral, sempre visível acima das abas
     u, v = linha.aresta_critica
     if resultado.gargalo_ativado:
         impacto = f" <b>{resultado.pct_com_espera:.0f}% dos paletes</b> esperaram na fila." if resultado.paletes_com_espera else ""
-        ui.html(f'<div class="bottleneck-banner"><span class="icon">🚨</span><span class="text">'
-                f'<b>GARGALO DETECTADO</b> — a aresta <b>{u} → {v}</b> atingiu a capacidade máxima '
-                f'c(u,v) = {linha.arestas[(u, v)].capacidade}.{impacto}</span></div>')
+        ui.banner("bad", f"<b>GARGALO DETECTADO</b> — a aresta <b>{u} → {v}</b> atingiu a capacidade máxima "
+                         f"c(u,v) = {linha.arestas[(u, v)].capacidade}.{impacto}")
     else:
-        ui.html(f'<div class="ok-banner"><span class="icon">✅</span><span class="text"><b>Fluxo estável</b> — '
-                f'a aresta {u} → {v} operou dentro da capacidade.</span></div>')
+        ui.banner("ok", f"<b>Fluxo estável</b> — a aresta {u} → {v} operou dentro da capacidade.")
 
-    abas = st.tabs(["📋 Resumo", "🕸️ Rede", "⏱️ Filas & Espera", "🔄 Comparativos",
-                    "🧪 Técnico & Exportar", "💡 Como funciona"])
+    abas = st.tabs([":material/dashboard: Resumo", ":material/hub: Rede", ":material/timeline: Filas & Espera",
+                    ":material/compare_arrows: Comparativos", ":material/terminal: Técnico & Exportar",
+                    ":material/lightbulb: Como funciona"])
     with abas[0]:
         aba_resumo(resultado, linha, logs)
     with abas[1]:
@@ -282,7 +281,7 @@ def main():
         if batch:
             ui.curvas_saturacao(*batch)
         else:
-            ui.html('<div class="hint-box">📈 <b>Quer ver a curva completa?</b> Abra <i>Análise de '
+            ui.html(f'<div class="hint-box">{ui.ico("show_chart")} <b>Quer ver a curva completa?</b> Abra <i>Análise de '
                     'sensibilidade (batch)</i> na barra lateral e clique em <b>Executar Análise</b>.</div>')
     with abas[4]:
         aba_tecnico(resultado, linha, logs, params)
