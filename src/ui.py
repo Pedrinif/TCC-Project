@@ -125,12 +125,12 @@ def grafo(linha: LinhaProducao, resultado: Optional[ResultadoSimulacao]):
     titulo_secao(
         "hub", "Mapa da Rede Logística — Grafo G=(V,E)", "INTERATIVO",
         "Cada <b>círculo (vértice)</b> é uma estação do armazém e cada <b>seta (aresta)</b> é o caminho "
-        "que o palete percorre. Nas setas: <b>c</b> = capacidade máxima, <b>f</b> = paletes que passaram.",
+        "que o palete percorre. Nas setas: <b>c</b> = capacidade, <b>f</b> = paletes que já passaram.",
     )
     html(f"""
     <div class="legend-row">
       <span><i class="dot" style="background:{p['blue']}"></i>Fluxo normal (f &lt; c)</span>
-      <span><i class="dot" style="background:{p['bad']}"></i>Gargalo — aresta saturada (f ≥ c)</span>
+      <span><i class="dot" style="background:{p['bad']}"></i>Gargalo — formou fila nesta aresta</span>
       <span>{ico('mouse')} Passe o mouse nos nós e setas para ver detalhes</span>
     </div>""")
 

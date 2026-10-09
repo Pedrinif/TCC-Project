@@ -105,8 +105,6 @@ class LinhaProducao:
         """Sequência de estações que o palete percorre até o estoque de destino."""
         return nx.shortest_path(self.G, self.fonte, destino)
 
-    def registrar_passagem(self, origem: str, destino: str) -> bool:
-        """Soma 1 no fluxo da aresta e diz se ela chegou na capacidade (saturou)."""
-        aresta = self.arestas[(origem, destino)]
-        aresta.fluxo_atual += 1
-        return aresta.fluxo_atual >= aresta.capacidade
+    def registrar_passagem(self, origem: str, destino: str):
+        """Soma 1 no fluxo da aresta (conta quantos paletes já passaram por ela)."""
+        self.arestas[(origem, destino)].fluxo_atual += 1

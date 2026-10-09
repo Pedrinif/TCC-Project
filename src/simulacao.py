@@ -60,19 +60,19 @@ class MotorDES:
             with self.recursos[estacao_id].request() as pedido:
                 yield pedido  # espera aqui se a estação estiver lotada
 
-                # só a espera na estação crítica entra nas métricas
+                # só a espera na estação crítica entra nas métricas; se alguém esperou, houve gargalo
                 if estacao_id == self.estacao_critica:
-                    self._tempos_espera.append(self.env.now - chegada)
+                    espera = self.env.now - chegada
+                    self._tempos_espera.append(espera)
+                    if espera > 0.01:
+                        self._gargalo_ativado = True
                 self._log(palete_id, estacao_id, "inicio_processamento")
 
                 tempo_proc = max(0.1, random.gauss(no.tempo_proc_base, no.tempo_proc_base * 0.25))
                 yield self.env.timeout(tempo_proc)
 
                 if i < len(caminho) - 1:
-                    proxima = caminho[i + 1]
-                    saturou = self.linha.registrar_passagem(estacao_id, proxima)
-                    if saturou and (estacao_id, proxima) == self.linha.aresta_critica:
-                        self._gargalo_ativado = True
+                    self.linha.registrar_passagem(estacao_id, caminho[i + 1])
 
                 self._log(palete_id, estacao_id, "saida_estacao")
 

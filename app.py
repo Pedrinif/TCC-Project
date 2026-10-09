@@ -51,15 +51,18 @@ def barra_lateral() -> dict:
                               label_visibility="collapsed")
         ui.html(f'<div class="topology-info">{PRESETS[preset]["descricao"]}</div>')
 
-        passo(2, "Carga e capacidade", "Volume maior que a capacidade induz o gargalo.")
+        passo(2, "Carga e capacidade", "Quanto menor a capacidade, maior a chance de formar fila.")
         volume = st.slider(":material/inventory_2: Volume de paletes (N)", 10, 1000, 150, 10)
-        capacidade = st.slider(":material/link: Capacidade da aresta crítica", 10, 500, 100, 10,
-                               help="c(u,v): quantos paletes a aresta crítica suporta.")
+        capacidade = st.slider(":material/link: Capacidade da aresta crítica", 1, 20, 4, 1,
+                               help="c(u,v): quantos paletes a estação crítica atende ao mesmo tempo.")
 
-        # aviso antecipado: se chega mais palete do que a aresta aguenta, vai ter gargalo
-        razao = volume / capacidade
-        tipo, texto = ("bad", "Gargalo previsto — vai formar fila.") if razao > 1 else ("ok", "Sistema deve operar estável.")
-        ui.banner(tipo, f"Volume ÷ Capacidade = <b>{razao:.2f}×</b><br>{texto}", compacto=True)
+        # aviso antecipado: chega 1 palete por u.t. e cada um ocupa a estação por tempo_proc_base,
+        # então a carga média é tempo_proc_base paletes ao mesmo tempo. Perto da capacidade, forma fila.
+        linha_prev = LinhaProducao(preset, capacidade)
+        carga = linha_prev.nos[linha_prev.aresta_critica[1]].tempo_proc_base
+        razao = carga / capacidade
+        tipo, texto = ("bad", "Gargalo previsto — vai formar fila.") if razao >= 0.8 else ("ok", "Sistema deve operar sem fila.")
+        ui.banner(tipo, f"Carga ÷ Capacidade = <b>{razao:.2f}</b><br>{texto}", compacto=True)
 
         passo(3, "Rodar")
         executar = st.button(":material/play_arrow: Executar Simulação", type="primary", width="stretch")
@@ -70,9 +73,9 @@ def barra_lateral() -> dict:
 
         with st.expander(":material/query_stats: Análise de sensibilidade (batch)"):
             st.caption("Repete a simulação para várias capacidades e gera curvas de saturação.")
-            cap_min = st.number_input("Capacidade mínima", 5, 400, 10, 5)
-            cap_max = st.number_input("Capacidade máxima", 10, 500, 200, 10)
-            passo_cap = st.number_input("Passo", 5, 50, 10, 5)
+            cap_min = st.number_input("Capacidade mínima", 1, 19, 1, 1)
+            cap_max = st.number_input("Capacidade máxima", 2, 20, 10, 1)
+            passo_cap = st.number_input("Passo", 1, 5, 1, 1)
             executar_batch = st.button(":material/play_arrow: Executar Análise", width="stretch")
 
     return dict(preset=preset, volume=volume, capacidade=capacidade, seed=seed,
@@ -129,9 +132,9 @@ sensibilidade* gera a curva completa.
     ui.titulo_secao("menu_book", "Glossário rápido", "TERMOS")
     st.dataframe(pd.DataFrame([
         ("Grafo G=(V,E)", "Representação da rede: V = estações, E = caminhos entre elas."),
-        ("Capacidade c(u,v)", "Máximo de paletes que a aresta de u para v suporta."),
+        ("Capacidade c(u,v)", "Quantos paletes a estação crítica atende ao mesmo tempo."),
         ("Fluxo f(u,v)", "Quantos paletes de fato passaram pela aresta."),
-        ("Gargalo", "Ponto da rede que limita o fluxo e gera fila (f ≥ c)."),
+        ("Gargalo", "Ponto da rede que limita o fluxo e faz os paletes esperarem em fila."),
         ("Corte mínimo", "Menor conjunto de arestas que separa origem e destino — o gargalo teórico."),
         ("Seed", "Semente do gerador aleatório. Mesma seed = mesmo resultado."),
         ("u.t.", "Unidade de tempo simulada (abstrata, ex.: minutos)."),
@@ -158,17 +161,12 @@ def aba_resumo(resultado, linha, logs):
                     "Calculado só pela estrutura da rede (Edmonds-Karp): o limite de paletes que ela "
                     "suporta e qual aresta segura esse limite.")
     fluxo_max, corte = linha.calcular_corte_minimo()
-    demanda = resultado.paletes_entregues / fluxo_max * 100 if fluxo_max else 0
-    c1, c2, c3 = st.columns(3)
+    c1, c2 = st.columns(2)
     with c1:
         ui.card("Fluxo máximo teórico", f"{fluxo_max:.0f}", "Edmonds-Karp (NetworkX)", "good")
     with c2:
         ui.card("Aresta do corte mínimo", " → ".join(corte[0]) if corte else "—",
                 f"{len(corte)} aresta(s) no corte", "warn", pequeno=True)
-    with c3:
-        ui.card("Demanda / capacidade teórica", f"{demanda:.1f}%",
-                f"{resultado.paletes_entregues} paletes / {fluxo_max:.0f} de capacidade",
-                "bad" if demanda > 100 else "good")
 
     ui.utilizacao_estacoes(AnalisadorResultados(logs, linha, resultado).obter_estatisticas(), linha)
 
@@ -261,10 +259,10 @@ def main():
     u, v = linha.aresta_critica
     if resultado.gargalo_ativado:
         impacto = f" <b>{resultado.pct_com_espera:.0f}% dos paletes</b> esperaram na fila." if resultado.paletes_com_espera else ""
-        ui.banner("bad", f"<b>GARGALO DETECTADO</b> — a aresta <b>{u} → {v}</b> atingiu a capacidade máxima "
-                         f"c(u,v) = {linha.arestas[(u, v)].capacidade}.{impacto}")
+        ui.banner("bad", f"<b>GARGALO DETECTADO</b> — a aresta <b>{u} → {v}</b> formou fila "
+                         f"(capacidade c(u,v) = {linha.arestas[(u, v)].capacidade}).{impacto}")
     else:
-        ui.banner("ok", f"<b>Fluxo estável</b> — a aresta {u} → {v} operou dentro da capacidade.")
+        ui.banner("ok", f"<b>Fluxo estável</b> — nenhum palete esperou na aresta {u} → {v}.")
 
     abas = st.tabs([":material/dashboard: Resumo", ":material/hub: Rede", ":material/timeline: Filas & Espera",
                     ":material/compare_arrows: Comparativos", ":material/terminal: Técnico & Exportar",
