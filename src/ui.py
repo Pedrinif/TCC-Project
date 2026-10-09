@@ -2,540 +2,214 @@ from typing import Dict, List, Optional, Any
 import pandas as pd
 import streamlit as st
 import altair as alt
-import streamlit.components.v1 as components
 from pyvis.network import Network
 
 from src.domain import ResultadoSimulacao
 from src.rede import LinhaProducao
+from src.simulacao import MotorDES
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# COMPONENTES VISUAIS AUXILIARES
-# ═══════════════════════════════════════════════════════════════════════════════
+VERDE, AMARELO, VERMELHO, AZUL = "#3fb950", "#d29922", "#f85149", "#388bfd"
+COR_POR_TIPO = {"doca": "#1f6feb", "triagem": AMARELO, "estoque": VERDE, "inspecao": "#f0883e"}
 
-def render_metric_card(
-    label: str,
-    value: str,
-    delta: str = "",
-    delta_tipo: str = "",
-    cor: str = "default",
-):
-    """
-    Renderiza os cards de métricas simples com bordas elegantes, exatamente como
-    nas capturas de tela (caixas cinzas escuras integradas ao tema sem barras de cor).
-    """
-    delta_class = f"delta-{delta_tipo}" if delta_tipo else ""
-    value_class = "metric-value-tcc small" if cor == "small" else "metric-value-tcc"
-    st.markdown(f"""
-    <div class="metric-card-tcc {delta_class}">
+
+def html(conteudo: str):
+    st.markdown(conteudo, unsafe_allow_html=True)
+
+
+def card(label: str, valor: str, detalhe: str = "", status: str = "", pequeno: bool = False):
+    """Card de métrica. status = good / warn / bad (muda a cor da borda e do detalhe)."""
+    classe_valor = "metric-value-tcc small" if pequeno else "metric-value-tcc"
+    html(f"""
+    <div class="metric-card-tcc delta-{status}">
       <div class="metric-label-tcc">{label}</div>
-      <div class="{value_class}">{value}</div>
-      <div class="metric-delta-tcc {delta_class}">{delta}</div>
-    </div>
-    """, unsafe_allow_html=True)
+      <div class="{classe_valor}">{valor}</div>
+      <div class="metric-delta-tcc delta-{status}">{detalhe}</div>
+    </div>""")
 
 
-def render_section_header(icon: str, titulo: str, badge: str = "", descricao: str = ""):
-    """Cabeçalho de seção com uma explicação curta, em linguagem simples, logo abaixo."""
+def titulo_secao(icone: str, titulo: str, badge: str = "", descricao: str = ""):
+    """Título de seção com uma frase curta explicando o que o bloco mostra."""
     badge_html = f'<span class="section-badge-tcc">{badge}</span>' if badge else ""
     desc_html = f'<div class="section-desc-tcc">{descricao}</div>' if descricao else ""
-    st.markdown(f"""
+    html(f"""
     <div class="section-header-tcc">
-      <span class="section-icon-tcc">{icon}</span>
-      <span class="section-title-tcc">{titulo}</span>
-      {badge_html}
-    </div>
-    {desc_html}
-    """, unsafe_allow_html=True)
+      <span class="section-icon-tcc">{icone}</span>
+      <span class="section-title-tcc">{titulo}</span>{badge_html}
+    </div>{desc_html}""")
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# VISUALIZADOR DE GRAFOS COM PYVIS
-# ═══════════════════════════════════════════════════════════════════════════════
-
-class VisualizadorGrafo:
-    def __init__(self, linha: LinhaProducao, resultado: Optional[ResultadoSimulacao]):
-        self.linha = linha
-        self.resultado = resultado
-
-    def gerar_html(self) -> str:
-        net = Network(
-            height="520px",
-            width="100%",
-            bgcolor="#0d1117",
-            font_color="#e6edf3",
-            directed=True,
-        )
-
-        net.set_options("""
-        {
-          "physics": {
-            "enabled": false
-          },
-          "edges": {
-            "smooth": {
-              "type": "curvedCW",
-              "roundness": 0.15
-            },
-            "font": {
-              "size": 12,
-              "color": "#8b949e",
-              "strokeWidth": 0,
-              "background": "#161b22"
-            }
-          },
-          "nodes": {
-            "font": {
-              "multi": true,
-              "size": 13,
-              "bold": {
-                "size": 14
-              }
-            },
-            "shadow": {
-              "enabled": true,
-              "color": "rgba(0,0,0,0.6)",
-              "size": 15,
-              "x": 3,
-              "y": 3
-            }
-          },
-          "interaction": {
-            "hover": true,
-            "tooltipDelay": 200
-          }
-        }
-        """)
-
-        tamanho_por_tipo = {
-            "doca": 55, "triagem": 48, "estoque": 38, "inspecao": 45
-        }
-
-        # Vértices
-        for no_id, no in self.linha.nos.items():
-            tamanho = tamanho_por_tipo.get(no.tipo, 40)
-            tooltip = (
-                f"<b>Estação:</b> {no_id}<br>"
-                f"<b>Tipo:</b> {no.tipo.capitalize()}<br>"
-                f"<b>Capacidade:</b> {no.capacidade_interna} paletes<br>"
-                f"<b>T. Proc. Base:</b> {no.tempo_proc_base} min"
-            )
-
-            net.add_node(
-                no_id,
-                label=no.rotulo,
-                color={
-                    "background": no.cor,
-                    "border": "#e6edf3",
-                    "highlight": {"background": "#ffffff", "border": "#58a6ff"},
-                    "hover": {"background": no.cor, "border": "#58a6ff"},
-                },
-                size=tamanho,
-                x=no.x,
-                y=no.y,
-                physics=False,
-                title=tooltip,
-                borderWidth=2,
-                borderWidthSelected=3,
-            )
-
-        # Arestas
-        for (orig, dest), aresta in self.linha.arestas.items():
-            saturada = (
-                (orig, dest) == self.linha.aresta_critica
-                and self.resultado is not None
-                and self.resultado.gargalo_ativado
-            )
-
-            cor_aresta   = "#f85149" if saturada else "#388bfd"
-            largura      = 5 if saturada else 3
-
-            utilizacao_pct = min(100, int((aresta.fluxo_atual / aresta.capacidade) * 100)) \
-                if aresta.capacidade > 0 else 0
-
-            rotulo_aresta = (
-                f"c={aresta.capacidade}\n"
-                f"f={aresta.fluxo_atual}\n"
-                f"({utilizacao_pct}%)"
-            )
-
-            tooltip_aresta = (
-                f"<b>Aresta:</b> ({orig} → {dest})<br>"
-                f"<b>Capacidade c(u,v):</b> {aresta.capacidade}<br>"
-                f"<b>Fluxo f(u,v):</b> {aresta.fluxo_atual}<br>"
-                f"<b>Utilização:</b> {utilizacao_pct}%<br>"
-                f"{'⚠️ GARGALO ATIVO' if saturada else '✅ Fluxo normal'}"
-            )
-
-            net.add_edge(
-                orig, dest,
-                label=rotulo_aresta,
-                color={"color": cor_aresta, "hover": "#ffffff"},
-                width=largura,
-                title=tooltip_aresta,
-                arrows={"to": {"enabled": True, "scaleFactor": 1.2}},
-            )
-
-        return net.generate_html()
+def _tema_escuro(grafico: alt.Chart, altura: int = 280) -> alt.Chart:
+    """Aplica as mesmas cores de eixo/grade em todos os gráficos."""
+    return (
+        grafico.properties(height=altura)
+        .configure_view(strokeWidth=0)
+        .configure_axis(labelColor="#8b949e", titleColor="#c9d1d9", gridColor="#21262d", domainColor="#30363d")
+        .configure_legend(labelColor="#c9d1d9", titleColor="#8b949e", orient="bottom")
+    )
 
 
-def _render_grafo(linha: LinhaProducao, resultado: Optional[ResultadoSimulacao]):
-    render_section_header(
+def grafo(linha: LinhaProducao, resultado: Optional[ResultadoSimulacao]):
+    """Desenha o grafo com pyvis. A aresta crítica fica vermelha quando o gargalo é ativado."""
+    titulo_secao(
         "🕸️", "Mapa da Rede Logística — Grafo G=(V,E)", "INTERATIVO",
         "Cada <b>círculo (vértice)</b> é uma estação do armazém e cada <b>seta (aresta)</b> é o caminho "
         "que o palete percorre. Nas setas: <b>c</b> = capacidade máxima, <b>f</b> = paletes que passaram.",
     )
-
-    st.markdown("""
+    html(f"""
     <div class="legend-row">
-      <span><i class="dot" style="background:#388bfd"></i>Fluxo normal (f &lt; c)</span>
-      <span><i class="dot" style="background:#f85149"></i>Gargalo — aresta saturada (f ≥ c)</span>
+      <span><i class="dot" style="background:{AZUL}"></i>Fluxo normal (f &lt; c)</span>
+      <span><i class="dot" style="background:{VERMELHO}"></i>Gargalo — aresta saturada (f ≥ c)</span>
       <span>🖱️ Passe o mouse nos nós e setas para ver detalhes</span>
-    </div>
-    """, unsafe_allow_html=True)
+    </div>""")
 
-    visualizador = VisualizadorGrafo(linha, resultado)
-    html_grafo = visualizador.gerar_html()
+    net = Network(height="520px", width="100%", bgcolor="#0d1117", font_color="#e6edf3", directed=True)
+    net.set_options("""{
+      "physics": {"enabled": false},
+      "edges": {"smooth": {"type": "curvedCW", "roundness": 0.15},
+                "font": {"size": 12, "color": "#8b949e", "strokeWidth": 0, "background": "#161b22"}},
+      "nodes": {"font": {"multi": true, "size": 13}},
+      "interaction": {"hover": true, "tooltipDelay": 200}
+    }""")
 
-    st.markdown('<div class="graph-container">', unsafe_allow_html=True)
-    components.html(html_grafo, height=540, scrolling=False)
-    st.markdown('</div>', unsafe_allow_html=True)
+    tamanho = {"doca": 55, "triagem": 48, "inspecao": 45, "estoque": 38}
+    for no in linha.nos.values():
+        dica = (f"<b>{no.id}</b><br>Tipo: {no.tipo}<br>Capacidade: {no.capacidade_interna} paletes"
+                f"<br>T. proc. base: {no.tempo_proc_base} min")
+        net.add_node(no.id, label=no.rotulo, title=dica, size=tamanho.get(no.tipo, 40),
+                     x=no.x, y=no.y, physics=False, borderWidth=2,
+                     color={"background": no.cor, "border": "#e6edf3"})
 
+    gargalo = resultado is not None and resultado.gargalo_ativado
+    for (orig, dest), aresta in linha.arestas.items():
+        saturada = gargalo and (orig, dest) == linha.aresta_critica
+        uso = min(100, int(aresta.fluxo_atual / aresta.capacidade * 100))
+        net.add_edge(orig, dest,
+                     label=f"c={aresta.capacidade}\nf={aresta.fluxo_atual}\n({uso}%)",
+                     title=f"{orig} → {dest}<br>c={aresta.capacidade} · f={aresta.fluxo_atual} · {uso}%",
+                     color=VERMELHO if saturada else AZUL, width=5 if saturada else 3)
 
-def _render_analise_comparativa(resultados_batch: List[Dict[str, Any]], volume: int, preset: str):
-    render_section_header(
-        "📈", "Curvas de Saturação — variando a capacidade", "BATCH",
-        "A mesma simulação foi repetida para várias capacidades da aresta crítica. "
-        "O ponto onde a curva “despenca” é a capacidade mínima que elimina o gargalo.",
-    )
-
-    st.markdown(f"""
-    <div class="comparison-container">
-      <div class="comparison-label">
-        {len(resultados_batch)} cenários executados ·
-        N = {volume} paletes · Topologia: {preset}
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    g1_col, g2_col = st.columns(2)
-
-    with g1_col:
-        st.markdown("<div style='color:#8b949e;font-size:12px;margin-bottom:4px'>Tempo Médio de Espera × Capacidade c(u,v)</div>", unsafe_allow_html=True)
-        chart1 = (
-            alt.Chart(alt.Data(values=resultados_batch))
-            .mark_line(point=True, strokeWidth=2, color="#f85149")
-            .encode(
-                x=alt.X("capacidade:Q", title="Capacidade c(u,v)"),
-                y=alt.Y("tempo_medio_espera:Q", title="Tempo Médio (u.t.)"),
-                tooltip=[
-                    alt.Tooltip("capacidade:Q", title="c(u,v)"),
-                    alt.Tooltip("tempo_medio_espera:Q", title="T. Médio", format=".2f"),
-                    alt.Tooltip("gargalo:N", title="Gargalo"),
-                ],
-            )
-            .properties(height=280)
-            .configure_view(strokeWidth=0)
-            .configure_axis(labelColor="#8b949e", titleColor="#c9d1d9", gridColor="#21262d", domainColor="#30363d")
-        )
-        st.altair_chart(chart1, use_container_width=True)
-
-    with g2_col:
-        st.markdown("<div style='color:#8b949e;font-size:12px;margin-bottom:4px'>% Paletes com Espera × Capacidade c(u,v)</div>", unsafe_allow_html=True)
-        chart2 = (
-            alt.Chart(alt.Data(values=resultados_batch))
-            .mark_area(
-                line={"color": "#d29922", "strokeWidth": 2},
-                color=alt.Gradient(
-                    gradient="linear",
-                    stops=[
-                        alt.GradientStop(color="#d2992200", offset=0),
-                        alt.GradientStop(color="#d2992244", offset=1),
-                    ],
-                    x1=1, x2=1, y1=1, y2=0,
-                ),
-                point={"color": "#d29922", "filled": True, "size": 40},
-            )
-            .encode(
-                x=alt.X("capacidade:Q", title="Capacidade c(u,v)"),
-                y=alt.Y("pct_com_espera:Q", title="% com Espera"),
-                tooltip=[
-                    alt.Tooltip("capacidade:Q", title="c(u,v)"),
-                    alt.Tooltip("pct_com_espera:Q", title="% Espera", format=".1f"),
-                ],
-            )
-            .properties(height=280)
-            .configure_view(strokeWidth=0)
-            .configure_axis(labelColor="#8b949e", titleColor="#c9d1d9", gridColor="#21262d", domainColor="#30363d")
-        )
-        st.altair_chart(chart2, use_container_width=True)
+    st.iframe(net.generate_html(), height=540)
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# HISTOGRAMA DE TEMPOS DE ESPERA
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def _render_histograma_espera(tempos_espera: List[float]):
-    render_section_header(
+def histograma_espera(tempos_espera: List[float]):
+    titulo_secao(
         "📊", "Distribuição dos Tempos de Espera", "HISTOGRAMA",
         "Quantos paletes esperaram quanto tempo na fila da estação crítica. "
         "Barras concentradas à esquerda = sistema saudável; cauda longa à direita = gargalo.",
     )
-
-    if not tempos_espera or all(t <= 0.01 for t in tempos_espera):
-        st.markdown(
-            '<div style="text-align:center;padding:20px;color:#3fb950">'
-            '✅ Nenhum tempo de espera significativo registrado — sistema fluiu sem filas.</div>',
-            unsafe_allow_html=True,
-        )
+    if all(t <= 0.01 for t in tempos_espera):
+        html(f'<div class="hint-box" style="color:{VERDE}">✅ Nenhuma espera significativa — '
+             'o sistema fluiu sem filas.</div>')
         return
 
-    df = pd.DataFrame({"tempo_espera": tempos_espera})
-
-    chart = (
-        alt.Chart(df)
-        .mark_bar(
-            color=alt.Gradient(
-                gradient="linear",
-                stops=[
-                    alt.GradientStop(color="#f8514988", offset=0),
-                    alt.GradientStop(color="#f85149", offset=1),
-                ],
-                x1=0, x2=0, y1=1, y2=0,
-            ),
-            cornerRadiusTopLeft=3,
-            cornerRadiusTopRight=3,
-        )
-        .encode(
-            x=alt.X("tempo_espera:Q", bin=alt.Bin(maxbins=25), title="Tempo de Espera (u.t.)"),
-            y=alt.Y("count()", title="Frequência"),
-            tooltip=[
-                alt.Tooltip("tempo_espera:Q", bin=alt.Bin(maxbins=25), title="Faixa"),
-                alt.Tooltip("count()", title="Qtd. Paletes"),
-            ],
-        )
-        .properties(height=300)
-        .configure_view(strokeWidth=0)
-        .configure_axis(
-            labelColor="#8b949e", titleColor="#c9d1d9",
-            gridColor="#21262d", domainColor="#30363d",
-        )
+    grafico = alt.Chart(pd.DataFrame({"espera": tempos_espera})).mark_bar(color=VERMELHO).encode(
+        x=alt.X("espera:Q", bin=alt.Bin(maxbins=25), title="Tempo de espera (u.t.)"),
+        y=alt.Y("count()", title="Paletes"),
     )
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(_tema_escuro(grafico, 300), width="stretch")
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# GRÁFICO DE UTILIZAÇÃO POR ESTAÇÃO
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def _render_utilizacao_estacoes(estatisticas: Dict[str, Dict[str, Any]], linha):
-    render_section_header(
+def utilizacao_estacoes(estatisticas: Dict[str, Dict[str, Any]], linha: LinhaProducao):
+    titulo_secao(
         "🏗️", "Utilização por Estação de Trabalho", "OCUPAÇÃO",
         "Percentual do tempo em que cada estação ficou ocupada. "
         "🟢 &lt; 50% folga · 🟡 50–80% atenção · 🔴 &gt; 80% sobrecarregada.",
     )
-
-    if not estatisticas:
-        st.markdown(
-            '<div style="text-align:center;padding:20px;color:#8b949e">'
-            'Sem dados de utilização disponíveis.</div>',
-            unsafe_allow_html=True,
-        )
-        return
-
-    data = []
-    for est_id, metrica in estatisticas.items():
-        rotulo = linha.nos[est_id].rotulo.replace("\n", " ")
-        util = metrica["utilizacao"]
-        cor = "#3fb950" if util < 50 else ("#d29922" if util < 80 else "#f85149")
-        data.append({
-            "estacao": rotulo,
-            "utilizacao": round(util, 2),
-            "cor": cor,
+    dados = []
+    for est_id, m in estatisticas.items():
+        u = m["utilizacao"]
+        dados.append({
+            "estacao": linha.nos[est_id].rotulo.replace("\n", " "),
+            "utilizacao": round(u, 2),
+            "cor": VERDE if u < 50 else AMARELO if u < 80 else VERMELHO,
         })
 
-    df = pd.DataFrame(data)
-
-    chart = (
-        alt.Chart(df)
-        .mark_bar(cornerRadiusTopRight=4, cornerRadiusBottomRight=4)
-        .encode(
-            y=alt.Y("estacao:N", title=None, sort="-x",
-                     axis=alt.Axis(labelColor="#c9d1d9", labelFontSize=12)),
-            x=alt.X("utilizacao:Q", title="Utilização (%)",
-                     scale=alt.Scale(domain=[0, 100])),
-            color=alt.Color("cor:N", scale=None),
-            tooltip=[
-                alt.Tooltip("estacao:N", title="Estação"),
-                alt.Tooltip("utilizacao:Q", title="Utilização (%)", format=".1f"),
-            ],
-        )
-        .properties(height=max(180, len(data) * 50))
-        .configure_view(strokeWidth=0)
-        .configure_axis(
-            labelColor="#8b949e", titleColor="#c9d1d9",
-            gridColor="#21262d", domainColor="#30363d",
-        )
+    grafico = alt.Chart(pd.DataFrame(dados)).mark_bar(cornerRadiusEnd=4).encode(
+        y=alt.Y("estacao:N", title=None, sort="-x"),
+        x=alt.X("utilizacao:Q", title="Utilização (%)", scale=alt.Scale(domain=[0, 100])),
+        color=alt.Color("cor:N", scale=None),
+        tooltip=["estacao", "utilizacao"],
     )
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(_tema_escuro(grafico, max(180, len(dados) * 50)), width="stretch")
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# EVOLUÇÃO TEMPORAL DAS FILAS
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def _render_evolucao_filas(logs_detalhados: List[Dict[str, Any]], linha):
-    render_section_header(
+def evolucao_filas(logs_detalhados: List[Dict[str, Any]], linha: LinhaProducao):
+    """Tamanho da fila de cada estação ao longo do tempo (agrupado em intervalos de 0,5 u.t.)."""
+    titulo_secao(
         "⏱️", "Evolução das Filas ao Longo do Tempo", "TIMELINE",
         "Tamanho da fila em cada estação durante a simulação. Uma linha que só sobe indica "
         "que a estação não dá conta da demanda.",
     )
-
-    if not logs_detalhados:
-        st.markdown(
-            '<div style="text-align:center;padding:20px;color:#8b949e">'
-            'Sem logs disponíveis.</div>',
-            unsafe_allow_html=True,
-        )
-        return
-
     df = pd.DataFrame(logs_detalhados)
-    df_filas = df[df["evento"] == "chegada_fila"].copy()
+    df = df[df["evento"] == "chegada_fila"].copy()
+    df["tempo"] = (df["tempo"] * 2).round() / 2
+    df = df.groupby(["tempo", "estacao"])["tamanho_fila"].max().reset_index()
 
-    if df_filas.empty:
-        return
+    nomes = {nid: no.rotulo.replace("\n", " ") for nid, no in linha.nos.items()}
+    df["nome"] = df["estacao"].map(nomes)
+    cores = [COR_POR_TIPO.get(linha.nos[nid].tipo, "#8b949e") for nid in nomes]
 
-    # Arredondar tempo em intervalos pra suavizar o gráfico
-    df_filas["tempo_bin"] = (df_filas["tempo"] * 2).round() / 2
-
-    df_agrupado = (
-        df_filas.groupby(["tempo_bin", "estacao"])["tamanho_fila"]
-        .max()
-        .reset_index()
-        .rename(columns={"tempo_bin": "tempo", "tamanho_fila": "fila"})
+    grafico = alt.Chart(df).mark_line(strokeWidth=2, interpolate="monotone").encode(
+        x=alt.X("tempo:Q", title="Tempo simulado (u.t.)"),
+        y=alt.Y("tamanho_fila:Q", title="Tamanho da fila"),
+        color=alt.Color("nome:N", title="Estação", scale=alt.Scale(domain=list(nomes.values()), range=cores)),
+        tooltip=["tempo", "nome", "tamanho_fila"],
     )
-
-    # Mapear IDs para nomes legíveis
-    mapa_nomes = {nid: n.rotulo.replace("\n", " ") for nid, n in linha.nos.items()}
-    df_agrupado["nome_estacao"] = df_agrupado["estacao"].map(mapa_nomes)
-
-    # Cores por tipo de estação
-    cores_tipo = {
-        "doca": "#1f6feb", "triagem": "#d29922",
-        "estoque": "#3fb950", "inspecao": "#f0883e",
-    }
-    mapa_cores = {}
-    for nid, no in linha.nos.items():
-        nome = mapa_nomes[nid]
-        mapa_cores[nome] = cores_tipo.get(no.tipo, "#8b949e")
-
-    nomes_estacoes = list(mapa_cores.keys())
-    cores_lista = [mapa_cores[n] for n in nomes_estacoes]
-
-    chart = (
-        alt.Chart(df_agrupado)
-        .mark_line(strokeWidth=2, interpolate="monotone")
-        .encode(
-            x=alt.X("tempo:Q", title="Tempo Simulado (u.t.)"),
-            y=alt.Y("fila:Q", title="Tamanho da Fila"),
-            color=alt.Color(
-                "nome_estacao:N",
-                title="Estação",
-                scale=alt.Scale(domain=nomes_estacoes, range=cores_lista),
-            ),
-            tooltip=[
-                alt.Tooltip("tempo:Q", title="Tempo", format=".1f"),
-                alt.Tooltip("nome_estacao:N", title="Estação"),
-                alt.Tooltip("fila:Q", title="Fila"),
-            ],
-        )
-        .properties(height=350)
-        .configure_view(strokeWidth=0)
-        .configure_axis(
-            labelColor="#8b949e", titleColor="#c9d1d9",
-            gridColor="#21262d", domainColor="#30363d",
-        )
-        .configure_legend(
-            labelColor="#c9d1d9", titleColor="#8b949e",
-            orient="bottom", columns=3,
-        )
-    )
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(_tema_escuro(grafico, 350), width="stretch")
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# COMPARATIVO ENTRE TOPOLOGIAS
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def _render_comparativo_topologias(volume: int, capacidade: int, seed: int):
-    from src.simulacao import MotorDES
-
-    render_section_header(
+def comparativo_topologias(volume: int, capacidade: int, seed: int, presets: Dict[str, Dict]):
+    """Roda as 3 topologias com os mesmos parâmetros e compara lado a lado."""
+    titulo_secao(
         "🔄", "Comparativo Entre as 3 Topologias", "MESMOS PARÂMETROS",
         "As três configurações de armazém rodadas com o mesmo volume, capacidade e seed — "
         "mostra qual layout lida melhor com a mesma carga.",
     )
-
-    presets = ["simples", "multiplas_docas", "pipeline"]
-    nomes = {
-        "simples": "🔹 Simples",
-        "multiplas_docas": "🔷 Múltiplas Docas",
-        "pipeline": "🔶 Pipeline",
-    }
-
-    dados = []
-    for preset in presets:
-        from src.rede import LinhaProducao
-        linha = LinhaProducao(preset=preset, cap_aresta_critica=capacidade)
-        motor = MotorDES(linha, volume, seed=seed)
-        res = motor.executar()
-        fluxo_max, corte = linha.calcular_corte_minimo()
-
-        dados.append({
-            "Topologia": nomes[preset],
+    linhas = []
+    for preset, info in presets.items():
+        linha = LinhaProducao(preset, capacidade)
+        res = MotorDES(linha, volume, seed=seed).executar()
+        fluxo_max, _ = linha.calcular_corte_minimo()
+        linhas.append({
+            "Topologia": info["nome"],
             "Nós": len(linha.nos),
             "Arestas": len(linha.arestas),
             "Gargalo": "⚠️ SIM" if res.gargalo_ativado else "✅ NÃO",
-            "Espera Média (u.t.)": f"{res.tempo_medio_espera:.3f}",
-            "Espera Máx (u.t.)": f"{res.tempo_max_espera:.3f}",
-            "% com Espera": f"{(res.paletes_com_espera / res.paletes_entregues * 100):.1f}%",
-            "Fluxo Máx. Teórico": f"{fluxo_max:.0f}",
-            "Exec. (ms)": f"{res.tempo_execucao_seg * 1000:.1f}",
+            "Espera média (u.t.)": round(res.tempo_medio_espera, 3),
+            "Espera máx (u.t.)": round(res.tempo_max_espera, 3),
+            "% com espera": round(res.pct_com_espera, 1),
+            "Fluxo máx. teórico": int(fluxo_max),
+            "Exec. (ms)": round(res.tempo_execucao_seg * 1000, 1),
         })
+    df = pd.DataFrame(linhas)
+    st.dataframe(df, hide_index=True, width="stretch")
 
-    df = pd.DataFrame(dados)
-    st.dataframe(df, hide_index=True, use_container_width=True)
-
-    # Bar chart comparativo — espera média
-    dados_chart = []
-    for d in dados:
-        dados_chart.append({
-            "topologia": d["Topologia"],
-            "espera_media": float(d["Espera Média (u.t.)"]),
-        })
-
-    df_chart = pd.DataFrame(dados_chart)
-
-    chart = (
-        alt.Chart(df_chart)
-        .mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4)
-        .encode(
-            x=alt.X("topologia:N", title=None,
-                     axis=alt.Axis(labelColor="#c9d1d9", labelFontSize=12)),
-            y=alt.Y("espera_media:Q", title="Tempo Médio de Espera (u.t.)"),
-            color=alt.Color("topologia:N", scale=alt.Scale(
-                domain=[nomes[p] for p in presets],
-                range=["#1f6feb", "#388bfd", "#d29922"],
-            ), legend=None),
-            tooltip=[
-                alt.Tooltip("topologia:N", title="Topologia"),
-                alt.Tooltip("espera_media:Q", title="Espera Média", format=".3f"),
-            ],
-        )
-        .properties(height=280)
-        .configure_view(strokeWidth=0)
-        .configure_axis(
-            labelColor="#8b949e", titleColor="#c9d1d9",
-            gridColor="#21262d", domainColor="#30363d",
-        )
+    grafico = alt.Chart(df).mark_bar(cornerRadiusEnd=4, color=AZUL).encode(
+        x=alt.X("Topologia:N", title=None, axis=alt.Axis(labelAngle=0)),
+        y=alt.Y("Espera média (u.t.):Q"),
     )
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(_tema_escuro(grafico), width="stretch")
+
+
+def curvas_saturacao(resultados_batch: List[Dict[str, Any]], volume: int, preset: str):
+    """Gráficos da análise em lote: espera e % de paletes com espera conforme a capacidade cresce."""
+    titulo_secao(
+        "📈", "Curvas de Saturação — variando a capacidade", "BATCH",
+        "A mesma simulação foi repetida para várias capacidades da aresta crítica. "
+        "O ponto onde a curva “despenca” é a capacidade mínima que elimina o gargalo.",
+    )
+    html(f'<div class="comparison-label">{len(resultados_batch)} cenários · '
+         f'N = {volume} paletes · topologia: {preset}</div>')
+
+    df = pd.DataFrame(resultados_batch)
+    col1, col2 = st.columns(2)
+    for col, campo, titulo, cor in [
+        (col1, "tempo_medio_espera", "Tempo médio de espera (u.t.)", VERMELHO),
+        (col2, "pct_com_espera", "% de paletes com espera", AMARELO),
+    ]:
+        grafico = alt.Chart(df).mark_line(point=True, color=cor).encode(
+            x=alt.X("capacidade:Q", title="Capacidade c(u,v)"),
+            y=alt.Y(f"{campo}:Q", title=titulo),
+            tooltip=["capacidade", campo, "gargalo"],
+        )
+        col.altair_chart(_tema_escuro(grafico), width="stretch")

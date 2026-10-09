@@ -1,17 +1,21 @@
 from dataclasses import dataclass, field
 from typing import List
 
+
+# Estação do armazém (vértice do grafo).
 @dataclass
 class No:
     id: str
     rotulo: str
-    tipo: str
-    tempo_proc_base: float
-    capacidade_interna: int
+    tipo: str                 # doca, triagem, inspecao ou estoque
+    tempo_proc_base: float    # tempo médio de processamento de um palete
+    capacidade_interna: int   # quantos paletes a estação atende ao mesmo tempo
     cor: str = "#58a6ff"
-    x: float = 0.0
+    x: float = 0.0            # posição no desenho do grafo
     y: float = 0.0
 
+
+# Caminho entre duas estações (aresta). fluxo_atual conta quantos paletes passaram.
 @dataclass
 class Aresta:
     origem: str
@@ -20,6 +24,8 @@ class Aresta:
     fluxo_atual: int = 0
     peso: float = 1.0
 
+
+# O que sai de uma rodada da simulação.
 @dataclass
 class ResultadoSimulacao:
     paletes_entregues: int = 0
@@ -36,3 +42,9 @@ class ResultadoSimulacao:
         if not self.tempos_espera:
             return 0.0
         return self.tempo_total_espera / len(self.tempos_espera)
+
+    @property
+    def pct_com_espera(self) -> float:
+        if not self.paletes_entregues:
+            return 0.0
+        return self.paletes_com_espera / self.paletes_entregues * 100

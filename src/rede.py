@@ -2,134 +2,111 @@ import networkx as nx
 from typing import Dict, List, Tuple
 from src.domain import No, Aresta
 
+# Capacidade "infinita" das arestas que não são o foco do estudo
+SEM_LIMITE = 999
+
+# Cada topologia: estações (nós), caminhos (arestas) e qual aresta é a crítica.
+# A aresta crítica fica com capacidade None e recebe o valor escolhido na tela.
+PRESETS = {
+    "simples": {
+        "nome": "🔹 Simples — Fluxo Linear",
+        "descricao": "Doca → Triagem → 2 Estoques (4 nós, 3 arestas). "
+                     "Topologia clássica com aresta crítica Doca→Triagem.",
+        "nos": [
+            No("Doca_Recebimento", "🚛 Doca\nRecebimento", "doca", 2.0, 100, "#1f6feb", -350, 0),
+            No("Area_Triagem", "🔀 Área de\nTriagem", "triagem", 3.5, 20, "#d29922", 0, 0),
+            No("Estoque_A", "📦 Estoque A\n(Giro Alto)", "estoque", 1.5, 500, "#3fb950", 300, -150),
+            No("Estoque_B", "📦 Estoque B\n(Giro Baixo)", "estoque", 1.5, 500, "#3d8b40", 300, 150),
+        ],
+        "arestas": [
+            ("Doca_Recebimento", "Area_Triagem", None, 1.0),
+            ("Area_Triagem", "Estoque_A", SEM_LIMITE, 1.2),
+            ("Area_Triagem", "Estoque_B", SEM_LIMITE, 1.8),
+        ],
+        "fonte": "Doca_Recebimento",
+    },
+    "multiplas_docas": {
+        "nome": "🔷 Múltiplas Docas — Hub Central",
+        "descricao": "2 Docas → Hub Triagem → 3 Estoques (6 nós, 5 arestas). "
+                     "Simula recebimento paralelo convergindo em um hub central.",
+        "nos": [
+            No("Doca_Norte", "🚛 Doca Norte\n(Principal)", "doca", 2.0, 100, "#1f6feb", -400, -120),
+            No("Doca_Sul", "🚛 Doca Sul\n(Secundária)", "doca", 2.5, 80, "#388bfd", -400, 120),
+            No("Hub_Triagem", "🔀 Hub Central\nTriagem", "triagem", 3.5, 20, "#d29922", 0, 0),
+            No("Estoque_A", "📦 Estoque A\n(Perecíveis)", "estoque", 1.5, 400, "#3fb950", 350, -180),
+            No("Estoque_B", "📦 Estoque B\n(Geral)", "estoque", 1.5, 500, "#2ea043", 350, 0),
+            No("Estoque_C", "📦 Estoque C\n(Volumosos)", "estoque", 2.0, 300, "#3d8b40", 350, 180),
+        ],
+        "arestas": [
+            ("Doca_Norte", "Hub_Triagem", None, 1.0),
+            ("Doca_Sul", "Hub_Triagem", SEM_LIMITE, 1.5),
+            ("Hub_Triagem", "Estoque_A", SEM_LIMITE, 1.0),
+            ("Hub_Triagem", "Estoque_B", SEM_LIMITE, 1.3),
+            ("Hub_Triagem", "Estoque_C", SEM_LIMITE, 2.0),
+        ],
+        "fonte": "Doca_Norte",
+    },
+    "pipeline": {
+        "nome": "🔶 Pipeline com Inspeção",
+        "descricao": "Doca → Inspeção → Triagem → 2 Estoques (5 nós, 4 arestas). "
+                     "Cadeia linear com etapa de inspeção de qualidade.",
+        "nos": [
+            No("Doca_Recebimento", "🚛 Doca\nRecebimento", "doca", 2.0, 100, "#1f6feb", -500, 0),
+            No("Inspecao_Qualidade", "🔍 Inspeção\nQualidade", "inspecao", 4.0, 15, "#f0883e", -180, 0),
+            No("Area_Triagem", "🔀 Área de\nTriagem", "triagem", 3.0, 25, "#d29922", 140, 0),
+            No("Estoque_A", "📦 Estoque A\n(Aprovados)", "estoque", 1.5, 500, "#3fb950", 420, -130),
+            No("Estoque_B", "📦 Estoque B\n(Reprocesso)", "estoque", 2.0, 200, "#da3633", 420, 130),
+        ],
+        "arestas": [
+            ("Doca_Recebimento", "Inspecao_Qualidade", SEM_LIMITE, 1.0),
+            ("Inspecao_Qualidade", "Area_Triagem", None, 1.0),
+            ("Area_Triagem", "Estoque_A", SEM_LIMITE, 1.0),
+            ("Area_Triagem", "Estoque_B", SEM_LIMITE, 2.5),
+        ],
+        "fonte": "Doca_Recebimento",
+    },
+}
+
+
 class LinhaProducao:
-    PRESETS_INFO = {
-        "simples": {
-            "nome": "🔹 Simples — Fluxo Linear",
-            "descricao": "Doca → Triagem → 2 Estoques (4 nós, 3 arestas). "
-                         "Topologia clássica com aresta crítica Doca→Triagem.",
-        },
-        "multiplas_docas": {
-            "nome": "🔷 Múltiplas Docas — Hub Central",
-            "descricao": "2 Docas → Hub Triagem → 3 Estoques (6 nós, 5 arestas). "
-                         "Simula recebimento paralelo convergindo em um hub central.",
-        },
-        "pipeline": {
-            "nome": "🔶 Pipeline com Inspeção",
-            "descricao": "Doca → Inspeção → Triagem → 2 Estoques (5 nós, 4 arestas). "
-                         "Cadeia linear com etapa de inspeção de qualidade.",
-        },
-    }
+    """Monta o grafo G=(V,E) do armazém a partir de uma das topologias acima."""
 
     def __init__(self, preset: str = "simples", cap_aresta_critica: int = 100):
-        self.G = nx.DiGraph()
-        self.nos: Dict[str, No] = {}
-        self.arestas: Dict[Tuple[str, str], Aresta] = {}
-        self.aresta_critica: Tuple[str, str] = ("", "")
+        config = PRESETS[preset]
         self.preset = preset
-        self.construir_rede(preset, cap_aresta_critica)
+        self.fonte = config["fonte"]
+        self.sorvedouro = "Estoque_A"
+        self.G = nx.DiGraph()
+        # copia os nós para não alterar o preset original
+        self.nos: Dict[str, No] = {n.id: No(**vars(n)) for n in config["nos"]}
+        self.arestas: Dict[Tuple[str, str], Aresta] = {}
 
-    def _inserir_nos(self, nos_config: List[No]):
-        for no in nos_config:
-            self.nos[no.id] = no
-            self.G.add_node(
-                no.id,
-                label=no.rotulo,
-                tipo=no.tipo,
-                capacidade=no.capacidade_interna,
-                cor=no.cor,
-            )
+        for no in self.nos.values():
+            self.G.add_node(no.id)
 
-    def _inserir_arestas(self, arestas_config: List[Aresta]):
-        for aresta in arestas_config:
-            chave = (aresta.origem, aresta.destino)
-            self.arestas[chave] = aresta
-            self.G.add_edge(
-                aresta.origem,
-                aresta.destino,
-                capacity=aresta.capacidade,
-                peso=aresta.peso,
-            )
-
-    def construir_rede(self, preset: str, cap_aresta_critica: int):
-        if preset == "simples":
-            self.aresta_critica = ("Doca_Recebimento", "Area_Triagem")
-            self._inserir_nos([
-                No("Doca_Recebimento", "🚛 Doca\nRecebimento", "doca", 2.0, 100, "#1f6feb", -350, 0),
-                No("Area_Triagem", "🔀 Área de\nTriagem", "triagem", 3.5, 20, "#d29922", 0, 0),
-                No("Estoque_A", "📦 Estoque A\n(Giro Alto)", "estoque", 1.5, 500, "#3fb950", 300, -150),
-                No("Estoque_B", "📦 Estoque B\n(Giro Baixo)", "estoque", 1.5, 500, "#3d8b40", 300, 150),
-            ])
-            self._inserir_arestas([
-                Aresta("Doca_Recebimento", "Area_Triagem", cap_aresta_critica, peso=1.0),
-                Aresta("Area_Triagem", "Estoque_A", 999, peso=1.2),
-                Aresta("Area_Triagem", "Estoque_B", 999, peso=1.8),
-            ])
-            self.fonte = "Doca_Recebimento"
-            self.sorvedouro = "Estoque_A"
-
-        elif preset == "multiplas_docas":
-            self.aresta_critica = ("Doca_Norte", "Hub_Triagem")
-            self._inserir_nos([
-                No("Doca_Norte", "🚛 Doca Norte\n(Principal)", "doca", 2.0, 100, "#1f6feb", -400, -120),
-                No("Doca_Sul", "🚛 Doca Sul\n(Secundária)", "doca", 2.5, 80, "#388bfd", -400, 120),
-                No("Hub_Triagem", "🔀 Hub Central\nTriagem", "triagem", 3.5, 20, "#d29922", 0, 0),
-                No("Estoque_A", "📦 Estoque A\n(Perecíveis)", "estoque", 1.5, 400, "#3fb950", 350, -180),
-                No("Estoque_B", "📦 Estoque B\n(Geral)", "estoque", 1.5, 500, "#2ea043", 350, 0),
-                No("Estoque_C", "📦 Estoque C\n(Volumosos)", "estoque", 2.0, 300, "#3d8b40", 350, 180),
-            ])
-            self._inserir_arestas([
-                Aresta("Doca_Norte", "Hub_Triagem", cap_aresta_critica, peso=1.0),
-                Aresta("Doca_Sul", "Hub_Triagem", 999, peso=1.5),
-                Aresta("Hub_Triagem", "Estoque_A", 999, peso=1.0),
-                Aresta("Hub_Triagem", "Estoque_B", 999, peso=1.3),
-                Aresta("Hub_Triagem", "Estoque_C", 999, peso=2.0),
-            ])
-            self.fonte = "Doca_Norte"
-            self.sorvedouro = "Estoque_A"
-
-        elif preset == "pipeline":
-            self.aresta_critica = ("Inspecao_Qualidade", "Area_Triagem")
-            self._inserir_nos([
-                No("Doca_Recebimento", "🚛 Doca\nRecebimento", "doca", 2.0, 100, "#1f6feb", -500, 0),
-                No("Inspecao_Qualidade", "🔍 Inspeção\nQualidade", "inspecao", 4.0, 15, "#f0883e", -180, 0),
-                No("Area_Triagem", "🔀 Área de\nTriagem", "triagem", 3.0, 25, "#d29922", 140, 0),
-                No("Estoque_A", "📦 Estoque A\n(Aprovados)", "estoque", 1.5, 500, "#3fb950", 420, -130),
-                No("Estoque_B", "📦 Estoque B\n(Reprocesso)", "estoque", 2.0, 200, "#da3633", 420, 130),
-            ])
-            self._inserir_arestas([
-                Aresta("Doca_Recebimento", "Inspecao_Qualidade", 999, peso=1.0),
-                Aresta("Inspecao_Qualidade", "Area_Triagem", cap_aresta_critica, peso=1.0),
-                Aresta("Area_Triagem", "Estoque_A", 999, peso=1.0),
-                Aresta("Area_Triagem", "Estoque_B", 999, peso=2.5),
-            ])
-            self.fonte = "Doca_Recebimento"
-            self.sorvedouro = "Estoque_A"
+        for origem, destino, cap, peso in config["arestas"]:
+            if cap is None:
+                cap = cap_aresta_critica
+                self.aresta_critica = (origem, destino)
+            self.arestas[(origem, destino)] = Aresta(origem, destino, cap, peso=peso)
+            self.G.add_edge(origem, destino, capacity=cap)
 
     def calcular_corte_minimo(self) -> Tuple[float, List[Tuple[str, str]]]:
-        try:
-            valor_corte, (particao_a, particao_b) = nx.minimum_cut(
-                self.G, self.fonte, self.sorvedouro, capacity="capacity"
-            )
-            arestas_corte = []
-            for u, v in self.G.edges():
-                if u in particao_a and v in particao_b:
-                    arestas_corte.append((u, v))
-            return valor_corte, arestas_corte
-        except:
-            return 0.0, []
+        """
+        Fluxo máximo da doca até o estoque A (o NetworkX usa Edmonds-Karp por baixo).
+        Pelo teorema do fluxo máximo / corte mínimo, as arestas que ligam os dois lados
+        do corte são o gargalo teórico da rede.
+        """
+        valor, (lado_fonte, lado_destino) = nx.minimum_cut(self.G, self.fonte, self.sorvedouro)
+        corte = [(u, v) for u, v in self.G.edges() if u in lado_fonte and v in lado_destino]
+        return valor, corte
 
     def obter_caminho_lote(self, destino: str) -> List[str]:
+        """Sequência de estações que o palete percorre até o estoque de destino."""
         return nx.shortest_path(self.G, self.fonte, destino)
 
-    def atualizar_fluxo_aresta(self, origem: str, destino: str, delta: int = 1):
-        chave = (origem, destino)
-        if chave in self.arestas:
-            self.arestas[chave].fluxo_atual += delta
-
-    def aresta_em_capacidade(self, origem: str, destino: str) -> bool:
-        chave = (origem, destino)
-        if chave in self.arestas:
-            a = self.arestas[chave]
-            return a.fluxo_atual >= a.capacidade
-        return False
+    def registrar_passagem(self, origem: str, destino: str) -> bool:
+        """Soma 1 no fluxo da aresta e diz se ela chegou na capacidade (saturou)."""
+        aresta = self.arestas[(origem, destino)]
+        aresta.fluxo_atual += 1
+        return aresta.fluxo_atual >= aresta.capacidade
