@@ -24,24 +24,27 @@ def render_metric_card(
     nas capturas de tela (caixas cinzas escuras integradas ao tema sem barras de cor).
     """
     delta_class = f"delta-{delta_tipo}" if delta_tipo else ""
+    value_class = "metric-value-tcc small" if cor == "small" else "metric-value-tcc"
     st.markdown(f"""
-    <div class="metric-card-tcc">
+    <div class="metric-card-tcc {delta_class}">
       <div class="metric-label-tcc">{label}</div>
-      <div class="metric-value-tcc">{value}</div>
+      <div class="{value_class}">{value}</div>
       <div class="metric-delta-tcc {delta_class}">{delta}</div>
     </div>
     """, unsafe_allow_html=True)
 
 
-def render_section_header(icon: str, titulo: str, badge: str = ""):
-    """Cabeçalho de seção correspondente ao visual das imagens."""
+def render_section_header(icon: str, titulo: str, badge: str = "", descricao: str = ""):
+    """Cabeçalho de seção com uma explicação curta, em linguagem simples, logo abaixo."""
     badge_html = f'<span class="section-badge-tcc">{badge}</span>' if badge else ""
+    desc_html = f'<div class="section-desc-tcc">{descricao}</div>' if descricao else ""
     st.markdown(f"""
     <div class="section-header-tcc">
       <span class="section-icon-tcc">{icon}</span>
       <span class="section-title-tcc">{titulo}</span>
       {badge_html}
     </div>
+    {desc_html}
     """, unsafe_allow_html=True)
 
 
@@ -176,15 +179,19 @@ class VisualizadorGrafo:
 
 
 def _render_grafo(linha: LinhaProducao, resultado: Optional[ResultadoSimulacao]):
-    render_section_header("🕸️", "Grafo Logístico G=(V,E)", "VIS INTERATIVO")
+    render_section_header(
+        "🕸️", "Mapa da Rede Logística — Grafo G=(V,E)", "INTERATIVO",
+        "Cada <b>círculo (vértice)</b> é uma estação do armazém e cada <b>seta (aresta)</b> é o caminho "
+        "que o palete percorre. Nas setas: <b>c</b> = capacidade máxima, <b>f</b> = paletes que passaram.",
+    )
 
-    leg_col1, leg_col2, leg_col3 = st.columns(3)
-    with leg_col1:
-        st.markdown("🔵 **Aresta normal** — fluxo dentro da capacidade c(u,v) ❓")
-    with leg_col2:
-        st.markdown("🔴 **Aresta crítica** — gargalo detectado f(u,v) ≥ c(u,v) ❓")
-    with leg_col3:
-        st.markdown("⚪ **Interativo** — hover nos nós/arestas para detalhes ❓")
+    st.markdown("""
+    <div class="legend-row">
+      <span><i class="dot" style="background:#388bfd"></i>Fluxo normal (f &lt; c)</span>
+      <span><i class="dot" style="background:#f85149"></i>Gargalo — aresta saturada (f ≥ c)</span>
+      <span>🖱️ Passe o mouse nos nós e setas para ver detalhes</span>
+    </div>
+    """, unsafe_allow_html=True)
 
     visualizador = VisualizadorGrafo(linha, resultado)
     html_grafo = visualizador.gerar_html()
@@ -195,7 +202,11 @@ def _render_grafo(linha: LinhaProducao, resultado: Optional[ResultadoSimulacao])
 
 
 def _render_analise_comparativa(resultados_batch: List[Dict[str, Any]], volume: int, preset: str):
-    render_section_header("📈", "Análise Comparativa — Curvas de Saturação", "BATCH")
+    render_section_header(
+        "📈", "Curvas de Saturação — variando a capacidade", "BATCH",
+        "A mesma simulação foi repetida para várias capacidades da aresta crítica. "
+        "O ponto onde a curva “despenca” é a capacidade mínima que elimina o gargalo.",
+    )
 
     st.markdown(f"""
     <div class="comparison-container">
@@ -264,7 +275,11 @@ def _render_analise_comparativa(resultados_batch: List[Dict[str, Any]], volume: 
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _render_histograma_espera(tempos_espera: List[float]):
-    render_section_header("📊", "Distribuição dos Tempos de Espera", "HISTOGRAMA")
+    render_section_header(
+        "📊", "Distribuição dos Tempos de Espera", "HISTOGRAMA",
+        "Quantos paletes esperaram quanto tempo na fila da estação crítica. "
+        "Barras concentradas à esquerda = sistema saudável; cauda longa à direita = gargalo.",
+    )
 
     if not tempos_espera or all(t <= 0.01 for t in tempos_espera):
         st.markdown(
@@ -313,7 +328,11 @@ def _render_histograma_espera(tempos_espera: List[float]):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _render_utilizacao_estacoes(estatisticas: Dict[str, Dict[str, Any]], linha):
-    render_section_header("🏗️", "Utilização por Estação de Trabalho", "BAR CHART")
+    render_section_header(
+        "🏗️", "Utilização por Estação de Trabalho", "OCUPAÇÃO",
+        "Percentual do tempo em que cada estação ficou ocupada. "
+        "🟢 &lt; 50% folga · 🟡 50–80% atenção · 🔴 &gt; 80% sobrecarregada.",
+    )
 
     if not estatisticas:
         st.markdown(
@@ -365,7 +384,11 @@ def _render_utilizacao_estacoes(estatisticas: Dict[str, Dict[str, Any]], linha):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _render_evolucao_filas(logs_detalhados: List[Dict[str, Any]], linha):
-    render_section_header("⏱️", "Evolução Temporal das Filas", "TIMELINE")
+    render_section_header(
+        "⏱️", "Evolução das Filas ao Longo do Tempo", "TIMELINE",
+        "Tamanho da fila em cada estação durante a simulação. Uma linha que só sobe indica "
+        "que a estação não dá conta da demanda.",
+    )
 
     if not logs_detalhados:
         st.markdown(
@@ -446,7 +469,11 @@ def _render_evolucao_filas(logs_detalhados: List[Dict[str, Any]], linha):
 def _render_comparativo_topologias(volume: int, capacidade: int, seed: int):
     from src.simulacao import MotorDES
 
-    render_section_header("🔄", "Comparativo Automático — 3 Topologias", "CROSS-TOPOLOGY")
+    render_section_header(
+        "🔄", "Comparativo Entre as 3 Topologias", "MESMOS PARÂMETROS",
+        "As três configurações de armazém rodadas com o mesmo volume, capacidade e seed — "
+        "mostra qual layout lida melhor com a mesma carga.",
+    )
 
     presets = ["simples", "multiplas_docas", "pipeline"]
     nomes = {
@@ -476,7 +503,7 @@ def _render_comparativo_topologias(volume: int, capacidade: int, seed: int):
         })
 
     df = pd.DataFrame(dados)
-    st.table(df)
+    st.dataframe(df, hide_index=True, use_container_width=True)
 
     # Bar chart comparativo — espera média
     dados_chart = []

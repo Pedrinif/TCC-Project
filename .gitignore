@@ -19,3 +19,6 @@ Thumbs.db
 # Logs e arquivos temporários
 *.log
 *.tmp
+
+# Config local do Claude Code
+.claude/
