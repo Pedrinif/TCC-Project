@@ -52,29 +52,31 @@ def barra_lateral() -> dict:
         ui.html(f'<div class="topology-info">{PRESETS[preset]["descricao"]}</div>')
 
         passo(2, "Carga e capacidade", "Quanto menor a capacidade, maior a chance de formar fila.")
-        volume = st.slider(":material/inventory_2: Volume de paletes (N)", 10, 1000, 150, 10)
+        volume = st.slider(":material/inventory_2: Volume de paletes (N)", 10, 1000, 300, 10)
         capacidade = st.slider(":material/link: Capacidade da aresta crítica", 1, 20, 4, 1,
                                help="c(u,v): quantos paletes a estação crítica atende ao mesmo tempo.")
 
         # aviso antecipado: chega 1 palete por u.t. e cada um ocupa a estação por tempo_proc_base,
-        # então a carga média é tempo_proc_base paletes ao mesmo tempo. Perto da capacidade, forma fila.
+        # então a carga média é tempo_proc_base paletes ao mesmo tempo. Carga >= capacidade = instável.
         linha_prev = LinhaProducao(preset, capacidade)
         carga = linha_prev.nos[linha_prev.aresta_critica[1]].tempo_proc_base
         razao = carga / capacidade
-        tipo, texto = ("bad", "Gargalo previsto — vai formar fila.") if razao >= 0.8 else ("ok", "Sistema deve operar sem fila.")
+        tipo, texto = (("bad", "Instável: a carga supera a capacidade e a fila cresce.") if razao >= 1
+                       else ("ok", "Estável em média; a variabilidade ainda pode formar filas."))
         ui.banner(tipo, f"Carga ÷ Capacidade = <b>{razao:.2f}</b><br>{texto}", compacto=True)
 
         passo(3, "Rodar")
         executar = st.button(":material/play_arrow: Executar Simulação", type="primary", width="stretch")
         ui.html('<div class="sidebar-divider"></div>')
 
-        with st.expander(":material/casino: Avançado — Seed aleatória"):
-            seed = st.slider("Seed", 1, 100, 42, help="Mesma seed gera sempre o mesmo resultado.")
+        with st.expander(":material/casino: Avançado — Semente aleatória"):
+            seed = st.number_input("Semente", 1, 100000, 1000, 1,
+                                   help="Mesma semente gera sempre o mesmo resultado. Os experimentos do texto usam sementes consecutivas a partir de 1000.")
 
         with st.expander(":material/query_stats: Análise de sensibilidade (batch)"):
             st.caption("Repete a simulação para várias capacidades e gera curvas de saturação.")
             cap_min = st.number_input("Capacidade mínima", 1, 19, 1, 1)
-            cap_max = st.number_input("Capacidade máxima", 2, 20, 10, 1)
+            cap_max = st.number_input("Capacidade máxima", 2, 20, 8, 1)
             passo_cap = st.number_input("Passo", 1, 5, 1, 1)
             executar_batch = st.button(":material/play_arrow: Executar Análise", width="stretch")
 
@@ -165,9 +167,10 @@ def aba_resumo(resultado, linha, logs):
     with c4:
         ui.card("Pior espera", f"{pior:.2f}", "u.t. — pior caso observado", "bad" if pior > 10 else "warn")
 
-    ui.titulo_secao("science", "Gargalo Teórico — Fluxo Máximo & Corte Mínimo", "TEORIA DOS GRAFOS",
-                    "Calculado só pela estrutura da rede (Edmonds-Karp): o limite de paletes que ela "
-                    "suporta e qual aresta segura esse limite.")
+    ui.titulo_secao("science", "Fluxo Máximo & Corte Mínimo (protótipo)", "TEORIA DOS GRAFOS",
+                    "Nos modelos base a capacidade da aresta crítica é escolhida na tela, então o corte mínimo "
+                    "apenas devolve essa aresta. O gargalo estrutural calculado a partir de trabalhadores e "
+                    "tempos está na página <b>Processos reais</b>.")
     fluxo_max, corte = linha.calcular_corte_minimo()
     c1, c2 = st.columns(2)
     with c1:
@@ -207,7 +210,7 @@ def aba_tecnico(resultado, linha, logs, params):
         ui.card("Throughput", f"{resultado.paletes_entregues / max(ms, 1e-6):.0f}", "paletes processados por ms", "good")
 
     st.dataframe(pd.DataFrame({
-        "Parâmetro": ["Topologia", "Volume N", "Capacidade c(u,v)", "Seed", "Gargalo"],
+        "Parâmetro": ["Topologia", "Volume N", "Capacidade c(u,v)", "Semente", "Gargalo"],
         "Valor": [PRESETS[params["preset"]]["nome"], params["volume"], params["capacidade"],
                   params["seed"], "SIM" if resultado.gargalo_ativado else "NÃO"],
     }).astype(str), hide_index=True)
@@ -236,7 +239,7 @@ def main():
 
     if p["executar_batch"]:
         cap_min, cap_max, passo_cap = p["batch"]
-        estado.batch = (executar_analise_comparativa(p["volume"], cap_min, cap_max, passo_cap, p["preset"]),
+        estado.batch = (executar_analise_comparativa(p["volume"], cap_min, cap_max, passo_cap, p["preset"], p["seed"]),
                         p["volume"], p["preset"])
 
     batch = estado.get("batch")

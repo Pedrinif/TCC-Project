@@ -122,11 +122,11 @@ class MotorDES:
 
 
 def executar_analise_comparativa(volume: int, cap_min: int, cap_max: int, cap_step: int,
-                                 preset: str = "simples") -> List[Dict[str, Any]]:
+                                 preset: str = "simples", seed: int = 42) -> List[Dict[str, Any]]:
     """Roda a simulação para várias capacidades da aresta crítica (curva de saturação)."""
     resultados = []
     for cap in range(cap_min, cap_max + 1, cap_step):
-        res = MotorDES(LinhaProducao(preset, cap), volume).executar()
+        res = MotorDES(LinhaProducao(preset, cap), volume, seed=seed, medir_memoria=False).executar()
         resultados.append({
             "capacidade": cap,
             "tempo_medio_espera": res.tempo_medio_espera,

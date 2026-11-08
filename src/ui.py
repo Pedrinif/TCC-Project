@@ -247,7 +247,6 @@ def comparativo_topologias(volume: int, capacidade: int, seed: int, presets: Dic
     for preset, info in presets.items():
         linha = LinhaProducao(preset, capacidade)
         res = MotorDES(linha, volume, seed=seed).executar()
-        fluxo_max, _ = linha.calcular_corte_minimo()
         linhas.append({
             "Topologia": info["nome"],
             "Nós": len(linha.nos),
@@ -256,7 +255,6 @@ def comparativo_topologias(volume: int, capacidade: int, seed: int, presets: Dic
             "Espera média (u.t.)": round(res.tempo_medio_espera, 3),
             "Espera máx (u.t.)": round(res.tempo_max_espera, 3),
             "% com espera": round(res.pct_com_espera, 1),
-            "Fluxo máx. teórico": int(fluxo_max),
             "Exec. (ms)": round(res.tempo_execucao_seg * 1000, 1),
         })
     df = pd.DataFrame(linhas)

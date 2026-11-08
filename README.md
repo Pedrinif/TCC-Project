@@ -59,7 +59,7 @@ Cada comando imprime uma tabela e grava um CSV em `resultados/`. Padrão: 30 ré
 | E6 — validação M5 (Tabela 8) | `.venv/bin/python validar.py turnaround` |
 | E3 — empilhadeiras (Tabela 14) | `.venv/bin/python validar.py varredura --processo processos/recebimento_saderova.yaml --variante exp2 --pool empilhadeira --de 1 --ate 4 --replicas 20` |
 | E4 — conferentes (Tabela 15) | `.venv/bin/python validar.py varredura --processo processos/recebimento_saderova.yaml --variante exp2 --pool conferente --de 8 --ate 20 --replicas 20` |
-| E7 — alocação (Tabela 17) | `.venv/bin/python validar.py otimizar --processo processos/recebimento_saderova.yaml --variante exp2 --limite-espera 120` |
+| E7 — alocação (Tabela 17) | `.venv/bin/python validar.py otimizar --processo processos/recebimento_saderova.yaml --variante exp2 --limite-espera 120 --replicas 5` |
 | E8 — linha de montagem (Seção 4.1.6) | `.venv/bin/python validar.py salbp --arquivo processos/salbp/P25_14_ROSZIEG.alb --otimo 10` |
 | E9 — escalabilidade (Figura 14) | `.venv/bin/python validar.py escalabilidade` |
 

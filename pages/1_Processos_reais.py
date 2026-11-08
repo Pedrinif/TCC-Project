@@ -73,7 +73,7 @@ def barra_lateral():
         with st.expander("Tempos das atividades"):
             st.caption("Fator sobre o tempo original (1,0 = como na fonte).")
             for aid, a in proc.atividades.items():
-                f = st.slider(a.nome, 0.5, 2.0, 1.0, 0.05, key=f"t|{chave}|{aid}")
+                f = st.slider(a.nome, 0.5, 3.0, 1.0, 0.05, key=f"t|{chave}|{aid}")
                 if abs(f - 1.0) > 1e-9:
                     proc.escalar_duracao(aid, f)
 
