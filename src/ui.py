@@ -145,7 +145,7 @@ def grafo(linha: LinhaProducao, resultado: Optional[ResultadoSimulacao]):
 
     tamanho = {"doca": 55, "triagem": 48, "inspecao": 45, "estoque": 38}
     for no in linha.nos.values():
-        dica = (f"<b>{no.id}</b><br>Tipo: {no.tipo}<br>Capacidade: {no.capacidade_interna} paletes"
+        dica = (f"<b>{no.id}</b><br>Tipo: {no.tipo}<br>Capacidade: {linha.capacidade_efetiva(no.id)} paletes"
                 f"<br>T. proc. base: {no.tempo_proc_base} min")
         net.add_node(no.id, label=no.rotulo, title=dica, size=tamanho.get(no.tipo, 40),
                      x=no.x, y=no.y, physics=False, borderWidth=2,

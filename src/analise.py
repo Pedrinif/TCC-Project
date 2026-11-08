@@ -34,7 +34,7 @@ class AnalisadorResultados:
 
             esperas = (inicios - chegadas).dropna()
             tempo_ocupado = (saidas - inicios).dropna().sum()
-            utilizacao = tempo_ocupado / (tempo_total * no.capacidade_interna) * 100 if tempo_total > 0 else 0.0
+            utilizacao = tempo_ocupado / (tempo_total * self.linha.capacidade_efetiva(estacao_id)) * 100 if tempo_total > 0 else 0.0
 
             estatisticas[estacao_id] = {
                 "espera_media": esperas.mean() if not esperas.empty else 0.0,
@@ -64,7 +64,7 @@ class AnalisadorResultados:
             {
                 "Estação": est_id,
                 "Nome": self.linha.nos[est_id].rotulo.replace("\n", " "),
-                "Capacidade": self.linha.nos[est_id].capacidade_interna,
+                "Capacidade": self.linha.capacidade_efetiva(est_id),
                 "Utilização (%)": f"{m['utilizacao']:.2f}",
                 "Fila máxima": m["fila_maxima"],
                 "Espera média (u.t.)": f"{m['espera_media']:.4f}",

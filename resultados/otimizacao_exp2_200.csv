@@ -1,0 +1,4 @@
+Método,Alocação,Custo,Espera média,Viável,Avaliações,Tempo (s)
+Gulosa,"empilhadeira=3, conferente=13",16,185.25,sim,44,2.30
+Exaustiva,"empilhadeira=3, conferente=13",16,185.25,sim,577,29.45
+Recozimento,"empilhadeira=3, conferente=13",16,185.25,sim,81,4.21

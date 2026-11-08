@@ -1,0 +1,48 @@
+# Recebimento de paletes em armazém: caminhão -> empilhadeira -> conferência.
+# Unidade de tempo: segundos.
+nome: Recebimento de paletes em armazém (1 empilhadeira)
+fonte: >-
+  SADEROVA, J. et al. Case study: the simulation modelling of selected activity in a
+  warehouse operation. Wireless Networks, v. 28, p. 431-440, 2022.
+  DOI 10.1007/s11276-021-02574-6 (acesso aberto, CC BY 4.0).
+unidade_tempo: s
+horizonte: 14400            # turno de 240 min, como no artigo
+premissas:
+  - "Ciclo da empilhadeira: carregar 3-5 s, deslocar 10-20 s, descarregar 3-5 s, retornar 10-15 s (faixas medidas no artigo), modeladas como uniformes."
+  - "Conferência (quantitativa e qualitativa): constante de 600 s (artigo)."
+  - "O número de conferentes simultâneos NÃO está no texto lido. O padrão (99) equivale a capacidade ilimitada; reduza-o para dimensionar a equipe."
+  - "Chegada: 5 caminhões por turno, 5 a 32 paletes cada (artigo). O intervalo entre caminhões (2280 s = 38 min) é HIPÓTESE inferida dos tempos totais publicados, não vem do artigo."
+  - "No artigo o palete segue para a conferência enquanto a empilhadeira retorna; aqui a conferência começa após o retorno (diferença de até 15 s)."
+
+chegadas:
+  tipo: lotes
+  n_lotes: 5
+  tamanho_lote: {tipo: uniforme_int, min: 5, max: 32}
+  intervalo: {tipo: constante, valor: 2280}
+
+trabalhadores:
+  - {id: empilhadeira, funcao: Operador de empilhadeira, quantidade: 1}
+  - {id: conferente, funcao: Conferente, quantidade: 99}
+
+atividades:
+  - id: ciclo_empilhadeira
+    nome: Carregar, transportar, descarregar e retornar
+    trabalhador: empilhadeira
+    duracao:
+      tipo: soma
+      componentes:
+        - {tipo: uniforme, min: 3, max: 5}
+        - {tipo: uniforme, min: 10, max: 20}
+        - {tipo: uniforme, min: 3, max: 5}
+        - {tipo: uniforme, min: 10, max: 15}
+  - id: conferencia
+    nome: Conferência do palete
+    trabalhador: conferente
+    predecessoras: [ciclo_empilhadeira]
+    duracao: {tipo: constante, valor: 600}
+
+# Os três experimentos publicados no artigo (nº de paletes por caminhão)
+variantes:
+  exp1: {chegadas: {tamanhos: [18, 29, 5, 7, 29]}}    # 88 paletes; artigo: 176 min
+  exp2: {chegadas: {tamanhos: [20, 26, 26, 29, 27]}}  # 128 paletes; artigo: 188 min
+  exp3: {chegadas: {tamanhos: [10, 30, 17, 20, 22]}}  # 99 paletes; artigo: 174 min

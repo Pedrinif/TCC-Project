@@ -17,24 +17,23 @@ class MotorDES:
     cada estação segue uma Normal. Quando a estação está cheia, o palete entra na fila.
     """
 
-    def __init__(self, linha: LinhaProducao, volume_paletes: int, seed: int = 42):
+    def __init__(self, linha: LinhaProducao, volume_paletes: int, seed: int = 42, medir_memoria: bool = True):
         self.linha = linha
         self.volume_paletes = volume_paletes
-        random.seed(seed)  # mesma seed = mesmo resultado
+        self.seed = seed
+        self.medir_memoria = medir_memoria
+        self.rng = random.Random(seed)  # gerador próprio: mesma seed = mesmo resultado, sem estado global
 
         self.env = simpy.Environment()
         self.estacao_critica = linha.aresta_critica[1]
 
         # A estação no fim da aresta crítica atende no máximo c(u,v) paletes ao mesmo tempo
         self.recursos: Dict[str, simpy.Resource] = {}
-        for no_id, no in linha.nos.items():
-            if no_id == self.estacao_critica:
-                capacidade = max(1, linha.arestas[linha.aresta_critica].capacidade)
-            else:
-                capacidade = no.capacidade_interna
-            self.recursos[no_id] = simpy.Resource(self.env, capacity=capacidade)
+        for no_id in linha.nos:
+            self.recursos[no_id] = simpy.Resource(self.env, capacity=linha.capacidade_efetiva(no_id))
 
         self.estoques = [nid for nid, no in linha.nos.items() if no.tipo == "estoque"]
+        self.fontes = linha.fontes
         self._tempos_espera: List[float] = []
         self._gargalo_ativado = False
         self.logs_detalhados: List[Dict[str, Any]] = []
@@ -50,7 +49,10 @@ class MotorDES:
 
     def _processar_palete(self, palete_id: int):
         """Caminho de um palete: sorteia o estoque de destino e passa por cada estação."""
-        caminho = self.linha.obter_caminho_lote(random.choice(self.estoques))
+        destino = self.rng.choice(self.estoques)
+        # entra por uma das docas (sorteio só se houver mais de uma, para não alterar os presets de 1 doca)
+        fonte = self.rng.choice(self.fontes) if len(self.fontes) > 1 else self.fontes[0]
+        caminho = self.linha.obter_caminho_lote(destino, fonte)
 
         for i, estacao_id in enumerate(caminho):
             no = self.linha.nos[estacao_id]
@@ -68,7 +70,7 @@ class MotorDES:
                         self._gargalo_ativado = True
                 self._log(palete_id, estacao_id, "inicio_processamento")
 
-                tempo_proc = max(0.1, random.gauss(no.tempo_proc_base, no.tempo_proc_base * 0.25))
+                tempo_proc = max(0.1, self.rng.gauss(no.tempo_proc_base, no.tempo_proc_base * 0.25))
                 yield self.env.timeout(tempo_proc)
 
                 if i < len(caminho) - 1:
@@ -80,19 +82,31 @@ class MotorDES:
         """Solta um palete por vez com intervalo exponencial entre eles (média 1 u.t.)."""
         for i in range(self.volume_paletes):
             self.env.process(self._processar_palete(i))
-            yield self.env.timeout(random.expovariate(1.0))
+            yield self.env.timeout(self.rng.expovariate(1.0))
 
-    def executar(self) -> ResultadoSimulacao:
-        """Roda a simulação inteira e mede tempo de execução e pico de memória."""
-        tracemalloc.start()
-        inicio = time.perf_counter()
-
+    def _rodar(self):
         self.env.process(self._gerador_paletes())
         self.env.run()
 
-        duracao = time.perf_counter() - inicio
+    def _medir_pico_memoria(self) -> float:
+        """
+        Pico de memória (KB) numa execução à parte. O tracemalloc deixa o Python bem mais
+        lento, então ele nunca fica ligado durante a medição do tempo de execução.
+        """
+        copia = MotorDES(LinhaProducao(self.linha.preset, self.linha.arestas[self.linha.aresta_critica].capacidade),
+                         self.volume_paletes, self.seed, medir_memoria=False)
+        tracemalloc.start()
+        copia._rodar()
         _, pico_bytes = tracemalloc.get_traced_memory()
         tracemalloc.stop()
+        return pico_bytes / 1024
+
+    def executar(self) -> ResultadoSimulacao:
+        """Roda a simulação inteira; tempo de execução e pico de memória são medidos em execuções separadas."""
+        inicio = time.perf_counter()
+        self._rodar()
+        duracao = time.perf_counter() - inicio
+        pico_kb = self._medir_pico_memoria() if self.medir_memoria else 0.0
 
         esperas = self._tempos_espera
         return ResultadoSimulacao(
@@ -103,7 +117,7 @@ class MotorDES:
             tempos_espera=esperas,
             gargalo_ativado=self._gargalo_ativado,
             tempo_execucao_seg=duracao,
-            pico_memoria_kb=pico_bytes / 1024,
+            pico_memoria_kb=pico_kb,
         )
 
 

@@ -1,5 +1,6 @@
 import networkx as nx
-from typing import Dict, List, Tuple
+from networkx.algorithms.flow import edmonds_karp
+from typing import Dict, List, Optional, Tuple
 from src.domain import No, Aresta
 
 # Capacidade "infinita" das arestas que não são o foco do estudo
@@ -91,19 +92,39 @@ class LinhaProducao:
             self.arestas[(origem, destino)] = Aresta(origem, destino, cap, peso=peso)
             self.G.add_edge(origem, destino, capacity=cap)
 
+    @property
+    def fontes(self) -> List[str]:
+        """Todas as docas: os paletes podem entrar por qualquer uma delas."""
+        return [nid for nid, no in self.nos.items() if no.tipo == "doca"]
+
+    def capacidade_efetiva(self, no_id: str) -> int:
+        """
+        Quantos paletes a estação atende ao mesmo tempo na simulação. A estação no fim da
+        aresta crítica usa a capacidade da aresta (valor escolhido na tela); as demais usam
+        a capacidade interna do nó. Simulação e análise devem usar esta mesma função.
+        """
+        if no_id == self.aresta_critica[1]:
+            return max(1, self.arestas[self.aresta_critica].capacidade)
+        return self.nos[no_id].capacidade_interna
+
     def calcular_corte_minimo(self) -> Tuple[float, List[Tuple[str, str]]]:
         """
-        Fluxo máximo da doca até o estoque A (o NetworkX usa Edmonds-Karp por baixo).
-        Pelo teorema do fluxo máximo / corte mínimo, as arestas que ligam os dois lados
-        do corte são o gargalo teórico da rede.
+        Fluxo máximo da doca principal até o estoque A, pelo algoritmo de Edmonds-Karp
+        (informado explicitamente: o padrão do NetworkX é o preflow-push). Pelo teorema do
+        fluxo máximo e corte mínimo, as arestas que ligam os dois lados do corte são o
+        gargalo teórico da rede.
+        Atenção: aqui as capacidades das arestas são parâmetros escolhidos na tela, então o
+        corte tende a coincidir com a aresta crítica. Para descobrir o gargalo a partir de
+        trabalhadores e tempos de serviço, use src/estrutural.py.
         """
-        valor, (lado_fonte, lado_destino) = nx.minimum_cut(self.G, self.fonte, self.sorvedouro)
+        valor, (lado_fonte, lado_destino) = nx.minimum_cut(self.G, self.fonte, self.sorvedouro,
+                                                           flow_func=edmonds_karp)
         corte = [(u, v) for u, v in self.G.edges() if u in lado_fonte and v in lado_destino]
         return valor, corte
 
-    def obter_caminho_lote(self, destino: str) -> List[str]:
-        """Sequência de estações que o palete percorre até o estoque de destino."""
-        return nx.shortest_path(self.G, self.fonte, destino)
+    def obter_caminho_lote(self, destino: str, fonte: Optional[str] = None) -> List[str]:
+        """Sequência de estações que o palete percorre da doca de entrada até o estoque de destino."""
+        return nx.shortest_path(self.G, fonte or self.fonte, destino)
 
     def registrar_passagem(self, origem: str, destino: str):
         """Soma 1 no fluxo da aresta (conta quantos paletes já passaram por ela)."""

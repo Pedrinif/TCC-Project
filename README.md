@@ -82,3 +82,50 @@ O sistema conta com um analisador em Pandas que permite gerar relatórios consol
 - **Resumo Geral**: Métricas operacionais agregadas, gargalo estrutural teórico e throughput computacional.
 - **Desempenho por Estação**: Taxas de utilização, tempo máximo de fila e tempo médio de processamento de cada estação de trabalho.
 - **Logs de Eventos**: Log de eventos bruto para auditoria de tempo e filas.
+
+---
+
+## 🧱 Motor v2: processos como dados (workers, DAG de atividades e réplicas)
+
+Além do app Streamlit (presets de armazém), o projeto agora tem um motor genérico em que cada
+processo real é um arquivo YAML em `processos/`, com a **fonte citada** e as **premissas** explícitas.
+
+```
+processos/
+├── recebimento_saderova.yaml   # recebimento de paletes (Saderova et al., 2022)
+├── turnaround_b737.yaml        # turnaround de avião (San Antonio et al., 2017)
+└── salbp/exemplo_didatico.in2  # exemplo INVENTADO para teste; baixe as instâncias reais de assembly-line-balancing.de
+src/
+├── processo.py     # Distribuições, Trabalhador (pool), Atividade (com precedências) e leitor de YAML
+├── motor.py        # Motor SimPy genérico: atividades em paralelo (junção AND), trabalhadores com nome (A_1, A_2...), caminho crítico empírico
+├── grafo_processo.py # Nós e arestas do grafo interativo (atividades + trabalhadores, cores por utilização e gargalo)
+├── estrutural.py   # Capacidade por pool, CPM (caminho crítico e folgas) e corte mínimo com separação de nós
+├── replicacoes.py  # Réplicas independentes, IC 95% e varredura do nº de trabalhadores
+└── salbp.py        # Leitor de instâncias SALBP, heurística de atribuição de estações e conversão em Processo
+pages/1_Processos_reais.py  # Interface: grafo interativo, trabalhadores, resultados, estrutura e varredura
+validar.py          # Comparação com os números publicados (CLI)
+tests/              # pytest: M/M/1 e M/M/c contra fórmulas, Lei de Little, DAG, SALBP, YAML
+```
+
+```bash
+pip install -r requirements.txt
+pytest                                   # todos os testes
+python validar.py recebimento            # compara com os 3 experimentos do artigo
+python validar.py turnaround             # compara com as Tabelas 1 e 2 do artigo
+python validar.py salbp --arquivo processos/salbp/exemplo_didatico.in2 --ciclo 10
+python validar.py varredura --processo processos/recebimento_saderova.yaml --variante exp2 \
+       --pool empilhadeira --de 1 --ate 4 --limite-espera 120
+```
+
+### Interface gráfica dos processos reais
+```bash
+streamlit run app.py
+```
+No menu lateral, abra **Processos reais**. Escolha o processo, mude a quantidade de cada trabalhador
+(2 empilhadeiras viram `empilhadeira_1` e `empilhadeira_2` no grafo), ajuste tempos e clique em
+**Executar simulação**: o grafo passa a mostrar a utilização (verde/amarelo/vermelho), o gargalo dinâmico
+(borda vermelha) e o estrutural (borda laranja). A aba **Quantos trabalhadores?** faz a varredura com IC de 95%.
+
+Para modelar um processo novo, copie um YAML de `processos/`, troque trabalhadores, atividades
+(`predecessoras`) e distribuições (`constante`, `uniforme`, `triangular`, `normal`, `exponencial`,
+`weibull`, `lognormal`, `soma`) e preencha `fonte` e `premissas`.

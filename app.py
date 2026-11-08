@@ -18,7 +18,7 @@ from src.analise import AnalisadorResultados
 from src import ui
 
 st.set_page_config(page_title="ECOMUP Project", page_icon=":material/hub:", layout="wide")
-with open("style.css") as f:
+with open("style.css", encoding="utf-8") as f:
     ui.html(f"<style>{ui.css_do_tema()}{f.read()}</style>")
 
 
@@ -175,7 +175,7 @@ def aba_rede(resultado, linha):
     ui.grafo(linha, resultado)
     with st.expander(":material/table_chart: Tabela do grafo — vértices e arestas"):
         st.dataframe(pd.DataFrame([
-            {"Vértice": no.id, "Tipo": no.tipo, "Capacidade": no.capacidade_interna,
+            {"Vértice": no.id, "Tipo": no.tipo, "Capacidade": linha.capacidade_efetiva(no.id),
              "T. processamento": f"{no.tempo_proc_base} min"}
             for no in linha.nos.values()
         ]), hide_index=True, width="stretch")

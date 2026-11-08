@@ -1,0 +1,44 @@
+# Turnaround (rotação em solo) de um Boeing 737-800: atividades em paralelo com precedências.
+# Unidade de tempo: minutos.
+nome: Turnaround de aeronave (Boeing 737-800)
+fonte: >-
+  SAN ANTONIO, A.; JUAN, A. A.; CALVET, L.; FONSECA I CASAS, P.; GUIMARANS, D.
+  Using simulation to estimate critical paths and survival functions in aircraft
+  turnaround processes. In: Winter Simulation Conference, 2017, p. 3394-3403.
+unidade_tempo: min
+premissas:
+  - "Tempos médios por atividade: Tabela 1 do artigo (100%, 90% e 75% de ocupação)."
+  - "O artigo modela os tempos com Weibull; o parâmetro de forma NÃO está no texto lido. Adotado forma = 7, CALIBRADO para reproduzir as frequências de caminho crítico da Tabela 2 do artigo (forma 5 dá 99,5/95,5/88,2%; forma 7 dá ~99,7/99,3/95,4%). Os tempos totais (34/31/28 min) quase não dependem dessa escolha."
+  - "A estrutura de precedência foi montada a partir do texto: 5 caminhos (desembarque -> limpeza -> embarque; catering; descarga -> carga de bagagem; combustível; manutenção). A Figura 2 do artigo não foi extraída, então CONFIRA as precedências nela."
+  - "Equipes: uma por caminho (limpeza, catering, bagagem, combustível, manutenção); desembarque e embarque disputam a mesma ponte/porta. Dimensionamento das equipes é premissa nossa."
+
+chegadas: {tipo: unica, n_entidades: 1}
+
+trabalhadores:
+  - {id: ponte_embarque, funcao: Ponte e porta de embarque, quantidade: 1}
+  - {id: equipe_limpeza, funcao: Equipe de limpeza, quantidade: 1}
+  - {id: equipe_catering, funcao: Equipe de catering, quantidade: 1}
+  - {id: equipe_bagagem, funcao: Equipe de bagagem, quantidade: 1}
+  - {id: equipe_combustivel, funcao: Equipe de abastecimento, quantidade: 1}
+  - {id: equipe_manutencao, funcao: Equipe de manutenção, quantidade: 1}
+
+atividades:
+  - {id: desembarque, nome: Desembarque de passageiros, trabalhador: ponte_embarque, duracao: {tipo: weibull, media: 9, forma: 7}}
+  - {id: limpeza, nome: Limpeza da cabine, trabalhador: equipe_limpeza, predecessoras: [desembarque], duracao: {tipo: weibull, media: 11, forma: 7}}
+  - {id: embarque, nome: Embarque de passageiros, trabalhador: ponte_embarque, predecessoras: [limpeza], duracao: {tipo: weibull, media: 14, forma: 7}}
+  - {id: catering, nome: Catering, trabalhador: equipe_catering, duracao: {tipo: weibull, media: 15, forma: 7}}
+  - {id: descarga_bagagem, nome: Descarga de bagagem, trabalhador: equipe_bagagem, duracao: {tipo: weibull, media: 6, forma: 7}}
+  - {id: carga_bagagem, nome: Carga de bagagem, trabalhador: equipe_bagagem, predecessoras: [descarga_bagagem], duracao: {tipo: weibull, media: 16, forma: 7}}
+  - {id: combustivel, nome: Abastecimento, trabalhador: equipe_combustivel, duracao: {tipo: weibull, media: 9, forma: 7}}
+  - {id: manutencao, nome: Manutenção, trabalhador: equipe_manutencao, duracao: {tipo: weibull, media: 10, forma: 7}}
+
+# Ocupação do voo: só mudam desembarque e embarque (Tabela 1). Base = 100%.
+variantes:
+  ocupacao_90:
+    duracoes:
+      desembarque: {tipo: weibull, media: 8, forma: 7}
+      embarque: {tipo: weibull, media: 12, forma: 7}
+  ocupacao_75:
+    duracoes:
+      desembarque: {tipo: weibull, media: 7, forma: 7}
+      embarque: {tipo: weibull, media: 10, forma: 7}

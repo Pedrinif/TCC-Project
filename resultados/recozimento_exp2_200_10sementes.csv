@@ -1,0 +1,11 @@
+Semente,Alocação,Custo,Espera média,Viável,Avaliações
+1000,"empilhadeira=3, conferente=13",16,185.25,sim,81
+1001,"empilhadeira=1, conferente=1",2,3151.86,não,81
+1002,"empilhadeira=5, conferente=12",17,198.89,sim,81
+1003,"empilhadeira=5, conferente=12",17,198.85,sim,81
+1004,"empilhadeira=1, conferente=1",2,3153.35,não,81
+1005,"empilhadeira=5, conferente=12",17,198.81,sim,81
+1006,"empilhadeira=1, conferente=1",2,3152.24,não,81
+1007,"empilhadeira=2, conferente=14",16,187.50,sim,81
+1008,"empilhadeira=5, conferente=12",17,198.77,sim,81
+1009,"empilhadeira=1, conferente=1",2,3150.57,não,81
