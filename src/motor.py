@@ -14,14 +14,12 @@ Para os processos deste projeto isso não acontece (todas usam 1 por vez).
 """
 import random
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 import pandas as pd
 import simpy
 
 from src.processo import Processo
-
-LIMIAR_UTILIZACAO = 0.85  # acima disso o pool é considerado "no limite"
 
 
 def nomes_trabalhadores(pool_id: str, quantidade: int) -> List[str]:

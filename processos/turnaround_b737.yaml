@@ -1,6 +1,6 @@
 # Turnaround (rotação em solo) de um Boeing 737-800: atividades em paralelo com precedências.
 # Unidade de tempo: minutos.
-nome: Turnaround de aeronave (Boeing 737-800)
+nome: M5 Turnaround de aeronave (Boeing 737-800)
 fonte: >-
   SAN ANTONIO, A.; JUAN, A. A.; CALVET, L.; FONSECA I CASAS, P.; GUIMARANS, D.
   Using simulation to estimate critical paths and survival functions in aircraft

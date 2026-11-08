@@ -1,9 +1,9 @@
 forma_processo,dimensao,grandeza,expoente_medido,expoente_esperado
-cadeia,numero_atividades,analise_estrutural,,1.00
-cadeia,numero_atividades,tempo_simulacao,1.02,1.00
-cadeia,numero_atividades,memoria,0.93,1.00
-camadas,numero_atividades,analise_estrutural,,1.00
-camadas,numero_atividades,tempo_simulacao,1.02,1.00
-camadas,numero_atividades,memoria,1.02,1.00
-cadeia,numero_entidades,tempo_simulacao,1.1,1.00
-cadeia,numero_entidades,memoria,1.01,1.00
+cadeia,numero_atividades,analise_estrutural,0.86,1.0
+cadeia,numero_atividades,tempo_simulacao,1.02,1.0
+cadeia,numero_atividades,memoria,0.99,1.0
+camadas,numero_atividades,analise_estrutural,0.94,1.0
+camadas,numero_atividades,tempo_simulacao,1.11,1.0
+camadas,numero_atividades,memoria,1.03,1.0
+cadeia,numero_entidades,tempo_simulacao,1.17,1.0
+cadeia,numero_entidades,memoria,1.01,1.0

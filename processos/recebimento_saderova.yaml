@@ -1,6 +1,6 @@
 # Recebimento de paletes em armazém: caminhão -> empilhadeira -> conferência.
 # Unidade de tempo: segundos.
-nome: Recebimento de paletes em armazém (1 empilhadeira)
+nome: M4 Recebimento de paletes em armazém (1 empilhadeira)
 fonte: >-
   SADEROVA, J. et al. Case study: the simulation modelling of selected activity in a
   warehouse operation. Wireless Networks, v. 28, p. 431-440, 2022.

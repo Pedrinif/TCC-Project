@@ -84,59 +84,67 @@ def barra_lateral() -> dict:
 
 
 def como_funciona():
-    """Aba explicativa do projeto (serve de roteiro para a apresentação)."""
+    """Aba explicativa do projeto (segue o texto do TG; serve de roteiro para a apresentação)."""
     ico = ui.ico
     ui.html(f"""
     <div class="explain-grid">
       <div class="explain-card"><div class="explain-icon">{ico("error")}</div><h4>O problema</h4>
-        <p>Em um armazém, paletes chegam na doca, passam por triagem/inspeção e vão para o estoque.
-        Se uma etapa tem capacidade menor que a demanda, forma-se <b>fila</b> — é o <b>gargalo</b>,
-        que aumenta custo, tempo e desperdício.</p></div>
-      <div class="explain-card"><div class="explain-icon">{ico("psychology")}</div><h4>A solução</h4>
-        <p>Modelamos o armazém como um <b>grafo</b> (estações = vértices, caminhos = arestas) e
-        rodamos uma <b>simulação de eventos discretos</b> palete por palete, com chegadas e
-        tempos aleatórios realistas.</p></div>
+        <p>Em processos com muitas etapas, dependências e trabalhadores, é difícil saber
+        <b>antes</b> onde o fluxo vai travar. A etapa de menor capacidade vira o <b>gargalo</b>
+        e forma <b>fila</b>, aumentando tempo e custo.</p></div>
+      <div class="explain-card"><div class="explain-icon">{ico("psychology")}</div><h4>A abordagem</h4>
+        <p>Cada processo vira um <b>grafo direcionado</b> G=(V,E): vértices são atividades e
+        trabalhadores, arestas são precedências. Sobre ele rodam uma <b>análise estrutural</b>
+        (sem simular) e uma <b>simulação de eventos discretos</b> com réplicas.</p></div>
       <div class="explain-card"><div class="explain-icon">{ico("trending_up")}</div><h4>O resultado</h4>
-        <p>O sistema mostra <b>qual aresta é o gargalo</b>, quanto tempo os paletes esperam e
-        <b>qual capacidade mínima</b> resolve o problema — antes de mexer na operação real.</p></div>
+        <p>O sistema aponta o <b>gargalo estrutural</b> e o <b>dinâmico</b>, o caminho crítico e
+        <b>quantos trabalhadores</b> alocar em cada grupo para manter a espera abaixo de um limite.</p></div>
     </div>""")
 
     col_a, col_b = st.columns(2, gap="large")
     with col_a:
-        ui.titulo_secao("science", "As duas técnicas usadas", "BASE TEÓRICA")
+        ui.titulo_secao("science", "Técnicas usadas", "BASE TEÓRICA")
         st.markdown("""
-**1. Fluxo Máximo / Corte Mínimo (determinístico)** — algoritmo de *Edmonds-Karp* (via NetworkX).
-Só pela estrutura do grafo, calcula o máximo de paletes que a rede comporta e
-*qual aresta* limita esse fluxo (o **corte mínimo** = gargalo teórico).
+**Análise estrutural (determinística)**
+- capacidade por grupo de trabalhadores: o menor valor é o gargalo estrutural;
+- caminho crítico (CPM): sequência de atividades sem folga;
+- fluxo máximo / corte mínimo pelo algoritmo de *Edmonds-Karp* (processos em cadeia).
 
-**2. Simulação de Eventos Discretos (estocástico)** — biblioteca *SimPy*.
-- chegadas seguem um **processo de Poisson** (intervalos exponenciais);
-- o tempo em cada estação segue uma **distribuição Normal**;
-- cada estação tem capacidade limitada, então as filas aparecem sozinhas.
+**Simulação de eventos discretos (estocástica)**, com *SimPy*
+- chegadas de Poisson, em lotes ou únicas; tempos normais, uniformes, Weibull...;
+- várias réplicas com sementes diferentes e intervalo de confiança de 95%;
+- gargalo dinâmico = grupo onde as entidades mais esperam.
 
-A teoria diz *onde* está o gargalo; a simulação mostra *o impacto* dele.
+**Alocação de trabalhadores**: busca exaustiva (exata), gulosa (heurística) e
+recozimento simulado (metaheurística).
         """)
     with col_b:
-        ui.titulo_secao("explore", "Como usar em 3 passos", "GUIA RÁPIDO")
+        ui.titulo_secao("explore", "Onde está cada modelo", "MODELOS M1–M6")
+        st.dataframe(pd.DataFrame([
+            ("M1, M2, M3", "Modelos base de armazém (protótipo)", "Esta página"),
+            ("M4", "Recebimento de paletes — Saderova et al. (2022)", "Página Processos reais"),
+            ("M5", "Turnaround de Boeing 737 — San Antonio et al. (2017)", "Página Processos reais"),
+            ("M6", "Linha de montagem (instâncias SALBP)", "python validar.py salbp"),
+        ], columns=["Modelo", "Processo", "Onde usar"]), hide_index=True, width="stretch")
         st.markdown("""
-1. **Escolha a topologia** do armazém na barra lateral.
-2. **Ajuste o volume de paletes e a capacidade** da aresta crítica.
-   O indicador *Volume ÷ Capacidade* já avisa se vai formar gargalo.
-3. Clique em **:material/play_arrow: Executar Simulação** e navegue pelas abas.
+**Nesta página:** escolha a topologia, ajuste a capacidade da aresta crítica
+(o indicador *Carga ÷ Capacidade* avisa quando vai formar fila) e clique em
+**:material/play_arrow: Executar Simulação**.
 
-**Dica para a apresentação:** rode com capacidade bem baixa para mostrar o gargalo
-em vermelho, depois aumente para mostrar o sistema estável. A *análise de
-sensibilidade* gera a curva completa.
+**Dica para a apresentação:** capacidade 3 mostra o gargalo, capacidade 8 mostra
+o sistema estável. A *análise de sensibilidade* gera a curva completa (Tabela 12 do texto).
         """)
 
     ui.titulo_secao("menu_book", "Glossário rápido", "TERMOS")
     st.dataframe(pd.DataFrame([
-        ("Grafo G=(V,E)", "Representação da rede: V = estações, E = caminhos entre elas."),
+        ("Grafo G=(V,E)", "V = atividades/estações, E = precedências ou caminhos entre elas."),
         ("Capacidade c(u,v)", "Quantos paletes a estação crítica atende ao mesmo tempo."),
-        ("Fluxo f(u,v)", "Quantos paletes de fato passaram pela aresta."),
-        ("Gargalo", "Ponto da rede que limita o fluxo e faz os paletes esperarem em fila."),
+        ("Gargalo estrutural", "Grupo/etapa de menor capacidade, calculado sem simular."),
+        ("Gargalo dinâmico", "Grupo onde as entidades mais esperaram na simulação."),
+        ("Caminho crítico", "Atividades sem folga: atrasar qualquer uma atrasa o processo todo."),
         ("Corte mínimo", "Menor conjunto de arestas que separa origem e destino — o gargalo teórico."),
-        ("Seed", "Semente do gerador aleatório. Mesma seed = mesmo resultado."),
+        ("Réplica / semente", "Cada réplica é uma execução com semente própria; mesma semente = mesmo resultado."),
+        ("IC 95%", "Intervalo de confiança: faixa onde a média verdadeira deve estar."),
         ("u.t.", "Unidade de tempo simulada (abstrata, ex.: minutos)."),
     ], columns=["Termo", "Significado"]), hide_index=True, width="stretch")
 

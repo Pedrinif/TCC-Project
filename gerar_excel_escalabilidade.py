@@ -1,25 +1,16 @@
-import math
 from pathlib import Path
 
 import pandas as pd
 from openpyxl import Workbook
-from openpyxl.chart import ScatterChart, Reference, Series
 from openpyxl.formatting.rule import ColorScaleRule
-from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
+
+from src.escalabilidade import inclinacao_log_log
 
 
 PASTA = Path("resultados")
 ARQUIVO_SAIDA = PASTA / "escalabilidade.xlsx"
-
-
-def inclinacao_log_log(x, y):
-    lx = [math.log(float(v)) for v in x]
-    ly = [math.log(float(v)) for v in y]
-    mx, my = sum(lx) / len(lx), sum(ly) / len(ly)
-    numerador = sum((vx - mx) * (vy - my) for vx, vy in zip(lx, ly))
-    denominador = sum((vx - mx) ** 2 for vx in lx)
-    return numerador / denominador
 
 
 def cabecalho(ws, linha=1):
@@ -45,25 +36,6 @@ def escrever_dataframe(ws, df):
     cabecalho(ws)
     ajustar_colunas(ws)
     ws.freeze_panes = "A2"
-
-
-def adicionar_grafico(ws, df, coluna_x, coluna_y, titulo, destino):
-    x_col = df.columns.get_loc(coluna_x) + 1
-    y_col = df.columns.get_loc(coluna_y) + 1
-    grafico = ScatterChart()
-    grafico.title = titulo
-    grafico.x_axis.title = coluna_x.replace("_", " ")
-    grafico.y_axis.title = coluna_y.replace("_", " ")
-    grafico.x_axis.scaling.logBase = 10
-    grafico.y_axis.scaling.logBase = 10
-    grafico.legend = None
-    xvalues = Reference(ws, min_col=x_col, min_row=2, max_row=ws.max_row)
-    yvalues = Reference(ws, min_col=y_col, min_row=2, max_row=ws.max_row)
-    serie = Series(yvalues, xvalues, title=titulo)
-    grafico.series.append(serie)
-    grafico.height = 8
-    grafico.width = 13
-    ws.add_chart(grafico, destino)
 
 
 def main():

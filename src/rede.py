@@ -10,7 +10,7 @@ SEM_LIMITE = 999
 # A aresta crítica fica com capacidade None e recebe o valor escolhido na tela.
 PRESETS = {
     "simples": {
-        "nome": "Simples — Fluxo Linear",
+        "nome": "M1 Simples — Fluxo Linear",
         "descricao": "Doca → Triagem → 2 Estoques (4 nós, 3 arestas). "
                      "Topologia clássica com aresta crítica Doca→Triagem.",
         "nos": [
@@ -27,7 +27,7 @@ PRESETS = {
         "fonte": "Doca_Recebimento",
     },
     "multiplas_docas": {
-        "nome": "Múltiplas Docas — Hub Central",
+        "nome": "M2 Múltiplas Docas — Hub Central",
         "descricao": "2 Docas → Hub Triagem → 3 Estoques (6 nós, 5 arestas). "
                      "Simula recebimento paralelo convergindo em um hub central.",
         "nos": [
@@ -48,7 +48,7 @@ PRESETS = {
         "fonte": "Doca_Norte",
     },
     "pipeline": {
-        "nome": "Pipeline com Inspeção",
+        "nome": "M3 Pipeline com Inspeção",
         "descricao": "Doca → Inspeção → Triagem → 2 Estoques (5 nós, 4 arestas). "
                      "Cadeia linear com etapa de inspeção de qualidade.",
         "nos": [

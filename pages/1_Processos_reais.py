@@ -1,5 +1,5 @@
 """
-Página "Processos reais": usa o motor novo (processos em YAML, trabalhadores com nome, réplicas).
+Página "Processos reais" (modelos M4 e M5): processos em YAML, trabalhadores com nome e réplicas.
 
   - o grafo é interativo (arraste, use a roda do mouse para ampliar/reduzir);
   - mude a quantidade de cada trabalhador na barra lateral e o grafo ganha A_1, A_2...;
@@ -318,7 +318,7 @@ def excel(proc, resumos, op) -> bytes:
 # ---------------------------------------------------------------- página
 ui.html(f"""
 <div class="main-title">
-  <div class="eyebrow">Motor v2 · processos documentados</div>
+  <div class="eyebrow">Modelos M4 e M5 · processos documentados</div>
   <h1>Processos reais</h1>
   <div class="subtitle">Escolha um processo, mude a quantidade de trabalhadores e os tempos, e veja
   <b>onde está o gargalo</b> no grafo.</div>

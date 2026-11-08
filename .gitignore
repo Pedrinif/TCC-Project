@@ -4,6 +4,8 @@ __pycache__/
 *$py.class
 
 # Caches e Ambientes Virtuais
+.pytest_cache/
+__MACOSX/
 .venv/
 venv/
 ENV/

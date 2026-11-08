@@ -8,12 +8,12 @@ Análise estrutural (sem simular): onde o processo é limitado só pela sua estr
   um par de vértices (entrada → saída) cuja aresta tem a capacidade da atividade,
   então o corte mínimo aponta o gargalo sozinho, sem o usuário escolher a aresta.
 """
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 import networkx as nx
 from networkx.algorithms.flow import edmonds_karp
 
-from src.processo import ILIMITADO, Processo
+from src.processo import Processo
 
 INF = float("inf")
 
@@ -58,7 +58,7 @@ def cpm(proc: Processo) -> dict:
         es[i] = max((ef[p] for p in proc.atividades[i].predecessoras), default=0.0)
         ef[i] = es[i] + dur[i]
     fim = max(ef.values())
-    sucessoras = {i: [j for j, a in proc.atividades.items() if i in a.predecessoras] for i in proc.atividades}
+    sucessoras = proc.sucessoras()
     ls, lf = {}, {}
     for i in reversed(ordem):
         lf[i] = min((ls[s] for s in sucessoras[i]), default=fim)
@@ -102,7 +102,7 @@ def corte_minimo(proc: Processo) -> Optional[dict]:
         for p in a.predecessoras:
             G.add_edge(f"{p}_sai", f"{i}_ent")
     raizes = [i for i, a in proc.atividades.items() if not a.predecessoras]
-    folhas = [i for i in proc.atividades if not any(i in a.predecessoras for a in proc.atividades.values())]
+    folhas = [i for i, s in proc.sucessoras().items() if not s]
     for r in raizes:
         G.add_edge("FONTE", f"{r}_ent")
     for f in folhas:

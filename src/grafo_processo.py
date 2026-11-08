@@ -22,6 +22,8 @@ LARG_X = 280          # distância horizontal entre níveis
 ALT_Y = 120           # distância vertical entre atividades do mesmo nível
 ESPACO_TRAB = 90      # distância horizontal entre trabalhadores do mesmo pool
 MAX_VISIVEIS = 8      # acima disso o pool vira um único círculo "×N"
+LIMIAR_MEDIA = 0.60   # utilização a partir da qual o vértice fica amarelo
+LIMIAR_ALTA = 0.85    # ... e vermelho (só colore o grafo; o gargalo é decidido pela espera)
 
 COR = {
     "neutro": "#388bfd", "baixa": "#3fb950", "media": "#d29922", "alta": "#f85149",
@@ -33,7 +35,7 @@ COR = {
 def cor_utilizacao(u: Optional[float]) -> str:
     if u is None:
         return COR["neutro"]
-    return COR["baixa"] if u < 0.6 else COR["media"] if u < 0.85 else COR["alta"]
+    return COR["baixa"] if u < LIMIAR_MEDIA else COR["media"] if u < LIMIAR_ALTA else COR["alta"]
 
 
 def niveis(proc: Processo) -> Dict[str, int]:

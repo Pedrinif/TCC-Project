@@ -4,7 +4,7 @@ Validação dos processos reais contra os números publicados.
 Uso (a partir da raiz do projeto):
   python validar.py recebimento                      # artigo de Saderova et al. (2022)
   python validar.py turnaround                       # artigo de San Antonio et al. (2017)
-  python validar.py salbp --arquivo processos/salbp/exemplo_didatico.in2 --ciclo 10
+  python validar.py salbp --arquivo processos/salbp/P25_14_ROSZIEG.alb --otimo 10
   python validar.py varredura --processo processos/recebimento_saderova.yaml \
          --pool empilhadeira --de 1 --ate 4 --limite-espera 120
 
@@ -18,10 +18,10 @@ import pandas as pd
 
 from src.estrutural import analise_estrutural
 from src.processo import carregar_processo
-from src.replicacoes import agregar, executar_replicas, recomendar, varrer_pool
+from src.replicacoes import agregar, executar_replicas, ic95, recomendar, varrer_pool
 from src.salbp import atribuir_estacoes, ler_instancia, limite_inferior, processo_da_linha
 from src.otimizacao import busca_otimizada
-from src.escalabilidade import executar_benchmark, imprimir_inclinacoes
+from src.escalabilidade import executar_benchmark, expoentes
 from src.rede import LinhaProducao
 from src.simulacao import MotorDES
 
@@ -37,17 +37,6 @@ def _salvar(df: pd.DataFrame, nome: str):
 
 def _fmt(media, meia, casas=1):
     return f"{media:.{casas}f} ± {meia:.{casas}f}" if meia == meia else f"{media:.{casas}f}"
-
-
-def _ic95(valores):
-    valores = list(valores)
-    media = sum(valores) / len(valores)
-    if len(valores) == 1:
-        return media, 0.0
-    desvio = (sum((x - media) ** 2 for x in valores) / (len(valores) - 1)) ** 0.5
-    t_student = {19: 2.0930, 29: 2.0452}.get(len(valores) - 1, 1.96)
-    meia = t_student * desvio / len(valores) ** 0.5
-    return media, meia
 
 
 def cmd_basico(a):
@@ -73,9 +62,9 @@ def cmd_basico(a):
             esperas = [r.tempo_total_espera for r in resultados]
             paletes_com_espera = [r.paletes_com_espera for r in resultados]
             esperas_maximas = [r.tempo_max_espera for r in resultados]
-            espera, ic_espera = _ic95(esperas)
-            paletes, ic_paletes = _ic95(paletes_com_espera)
-            pior, ic_pior = _ic95(esperas_maximas)
+            espera, ic_espera = ic95(esperas)
+            paletes, ic_paletes = ic95(paletes_com_espera)
+            pior, ic_pior = ic95(esperas_maximas)
             linhas.append({
                 "modelo": modelo,
                 "capacidade": capacidade,
@@ -169,6 +158,13 @@ def cmd_salbp(a):
     print(f"\nVazão simulada: {_fmt(v['vazao'], v['vazao_ic'], 4)} produtos/u.t. (meta 1/ciclo = {1/ciclo:.4f})")
     print(f"Tempo médio no sistema: {_fmt(v['ts'], v['ts_ic'], 2)} u.t.")
     print("Estação com maior espera na fila = gargalo dinâmico; compare com a de maior carga nominal.")
+    # dados da instância em todas as linhas, para o CSV se explicar sozinho (Figura 13 do texto)
+    df.insert(0, "instancia", os.path.splitext(os.path.basename(a.arquivo))[0])
+    df.insert(1, "tempo_ciclo", ciclo)
+    df.insert(2, "estacoes_heuristica", len(est))
+    df.insert(3, "numero_otimo", a.otimo)
+    df.insert(4, "limite_inferior", lb)
+    df["vazao_simulada"], df["vazao_simulada_ic"], df["vazao_teorica"] = v["vazao"], v["vazao_ic"], 1 / ciclo
     _salvar(df, "validacao_salbp.csv")
 
 
@@ -250,7 +246,10 @@ def cmd_escalabilidade(a):
     atividades, entidades = executar_benchmark()
     _salvar(atividades, "escalabilidade_atividades.csv")
     _salvar(entidades, "escalabilidade_entidades.csv")
-    imprimir_inclinacoes(atividades, entidades)
+    exp = expoentes(atividades, entidades)
+    print("\nExpoentes de crescimento (inclinação log-log):")
+    print(exp.to_string(index=False))
+    _salvar(exp, "exponentes_escalabilidade.csv")
 
 
 def main():
@@ -267,6 +266,7 @@ def main():
     s.add_argument("--ciclo", type=float)
     s.add_argument("--variabilidade", type=float, default=0.2)
     s.add_argument("--n-produtos", type=int, default=500)
+    s.add_argument("--otimo", type=int, help="nº ótimo de estações publicado para a instância (só para o CSV)")
     s.set_defaults(f=cmd_salbp)
     v = sub.add_parser("varredura", parents=[pai])
     v.add_argument("--processo", required=True)

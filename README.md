@@ -1,131 +1,93 @@
-# ⚡ OptiGraph
-### Otimização de Fluxo em Redes Logísticas Industriais
+# ECOMUP Project
 
-> **Pedro Nassif — Trabalho de Graduação (TG)**  
-> Pesquisa Operacional · Teoria dos Grafos · Simulação de Eventos Discretos (DES)
+**Estudo computacional de otimização em metodologias utilizadas em processos industriais**
+Trabalho de Graduação — Engenharia de Computação, Universidade de Taubaté (2026)
+Miguel de Paulo Leite de Oliveira e Pedro Lauria Nassif · Orientador: Prof. Me. Julio Cesar Gonçalves
+
+Processos industriais e logísticos são modelados como **grafos direcionados** e analisados de duas formas:
+**análise estrutural** (capacidade por grupo de trabalhadores, caminho crítico e corte mínimo, sem simular) e
+**simulação de eventos discretos** com réplicas e intervalo de confiança de 95%. O sistema aponta o gargalo
+e estima quantos trabalhadores alocar em cada grupo.
 
 ---
 
-## ▶️ Como abrir o programa (toda vez que quiser usar)
-
-### Passo 1 — Abra o Terminal
-No Mac: pressione **⌘ + Espaço**, digite **Terminal** e aperte Enter.
-
-### Passo 2 — Cole esse comando e aperte Enter
+## Como abrir o programa
 
 ```bash
 cd /Users/pedronassif/Documents/Projetos/TCC-Project && .venv/bin/streamlit run app.py
 ```
 
-### Passo 3 — Abra o navegador
+Depois abra `http://localhost:8501` no navegador. Para fechar, `Ctrl + C` no terminal.
 
-O terminal vai mostrar uma mensagem assim:
-
-```
-Local URL: http://localhost:8501
-```
-
-Abra o **Google Chrome** (ou Safari) e acesse:
-
-```
-http://localhost:8501
-```
-
-### Passo 4 — Para fechar o programa
-
-Volte no Terminal e pressione **Ctrl + C**.
-
----
-
-## 🎮 Como usar o dashboard
-
-### Barra lateral (esquerda)
-
-**1. 🗺️ Topologia do Grafo G=(V,E)**
-- Escolha uma das 3 topologias disponíveis:
-
-| Topologia | Nós | Arestas | Descrição |
-|-----------|-----|---------|-----------|
-| 🔹 **Simples** | 4 | 3 | Doca → Triagem → 2 Estoques |
-| 🔷 **Múltiplas Docas** | 6 | 5 | 2 Docas → Hub Central → 3 Estoques |
-| 🔶 **Pipeline** | 5 | 4 | Doca → Inspeção → Triagem → 2 Estoques |
-
-**2. 📦 Volume Total de Paletes**
-- Controla quantos paletes serão simulados (de 10 a 1.000).
-
-**3. 🔗 Capacidade da Aresta Crítica**
-- Define o limite máximo de fluxo na aresta crítica de cada preset.
-
----
-
-## 📁 Estrutura de Diretórios (Modularizada)
-
-```
-TCC-Project/
-├── app.py                  # Ponto de entrada (UI Streamlit & Roteamento)
-├── style.css               # Estilos CSS customizados (Premium UI)
-├── requirements.txt        # Dependências atualizadas (com openpyxl)
-├── README.md               # Este guia
-└── src/
-    ├── __init__.py         # Inicializador do pacote
-    ├── domain.py           # Dataclasses de domínio (EstacaoTrabalho, Aresta, ResultadoSimulacao)
-    ├── rede.py             # Grafo (NetworkX, Edmonds-Karp/Corte Mínimo, Caminhos)
-    ├── simulacao.py        # Simulação estocástica (SimPy + Poisson + Normal)
-    └── analise.py          # Relatórios estatísticos e Exportação Excel (.xlsx)
-```
-
----
-
-## 💾 Relatório Multi-Abas em Excel (.xlsx)
-
-O sistema conta com um analisador em Pandas que permite gerar relatórios consolidados em Excel:
-- **Resumo Geral**: Métricas operacionais agregadas, gargalo estrutural teórico e throughput computacional.
-- **Desempenho por Estação**: Taxas de utilização, tempo máximo de fila e tempo médio de processamento de cada estação de trabalho.
-- **Logs de Eventos**: Log de eventos bruto para auditoria de tempo e filas.
-
----
-
-## 🧱 Motor v2: processos como dados (workers, DAG de atividades e réplicas)
-
-Além do app Streamlit (presets de armazém), o projeto agora tem um motor genérico em que cada
-processo real é um arquivo YAML em `processos/`, com a **fonte citada** e as **premissas** explícitas.
-
-```
-processos/
-├── recebimento_saderova.yaml   # recebimento de paletes (Saderova et al., 2022)
-├── turnaround_b737.yaml        # turnaround de avião (San Antonio et al., 2017)
-└── salbp/exemplo_didatico.in2  # exemplo INVENTADO para teste; baixe as instâncias reais de assembly-line-balancing.de
-src/
-├── processo.py     # Distribuições, Trabalhador (pool), Atividade (com precedências) e leitor de YAML
-├── motor.py        # Motor SimPy genérico: atividades em paralelo (junção AND), trabalhadores com nome (A_1, A_2...), caminho crítico empírico
-├── grafo_processo.py # Nós e arestas do grafo interativo (atividades + trabalhadores, cores por utilização e gargalo)
-├── estrutural.py   # Capacidade por pool, CPM (caminho crítico e folgas) e corte mínimo com separação de nós
-├── replicacoes.py  # Réplicas independentes, IC 95% e varredura do nº de trabalhadores
-└── salbp.py        # Leitor de instâncias SALBP, heurística de atribuição de estações e conversão em Processo
-pages/1_Processos_reais.py  # Interface: grafo interativo, trabalhadores, resultados, estrutura e varredura
-validar.py          # Comparação com os números publicados (CLI)
-tests/              # pytest: M/M/1 e M/M/c contra fórmulas, Lei de Little, DAG, SALBP, YAML
-```
+Na primeira vez (ou em outro computador), instale as dependências:
 
 ```bash
-pip install -r requirements.txt
-pytest                                   # todos os testes
-python validar.py recebimento            # compara com os 3 experimentos do artigo
-python validar.py turnaround             # compara com as Tabelas 1 e 2 do artigo
-python validar.py salbp --arquivo processos/salbp/exemplo_didatico.in2 --ciclo 10
-python validar.py varredura --processo processos/recebimento_saderova.yaml --variante exp2 \
-       --pool empilhadeira --de 1 --ate 4 --limite-espera 120
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 ```
 
-### Interface gráfica dos processos reais
-```bash
-streamlit run app.py
-```
-No menu lateral, abra **Processos reais**. Escolha o processo, mude a quantidade de cada trabalhador
-(2 empilhadeiras viram `empilhadeira_1` e `empilhadeira_2` no grafo), ajuste tempos e clique em
-**Executar simulação**: o grafo passa a mostrar a utilização (verde/amarelo/vermelho), o gargalo dinâmico
-(borda vermelha) e o estrutural (borda laranja). A aba **Quantos trabalhadores?** faz a varredura com IC de 95%.
+O botão no topo da barra lateral alterna entre modo claro e escuro.
+
+## As duas páginas
+
+| Página | Modelos | O que faz |
+|---|---|---|
+| **app** (principal) | M1, M2, M3 | Armazém de paletes: rede, filas, utilização, comparativo de topologias e análise de sensibilidade da capacidade |
+| **Processos reais** (menu lateral) | M4, M5 | Grafo interativo com atividades e trabalhadores, resultados com IC 95%, análise estrutural, varredura do nº de trabalhadores, fonte e premissas, exportação para Excel |
+
+## Os seis modelos (Tabela 4 do texto)
+
+| Modelo | Origem | Onde está |
+|---|---|---|
+| M1 Simples, M2 Múltiplas Docas, M3 Pipeline | Protótipo | `src/rede.py` |
+| M4 Recebimento de paletes | Saderova et al. (2022) | `processos/recebimento_saderova.yaml` |
+| M5 Turnaround de Boeing 737-800 | San Antonio et al. (2017) | `processos/turnaround_b737.yaml` |
+| M6 Linha de montagem | Instâncias SALBP | `processos/salbp/` + `src/salbp.py` |
 
 Para modelar um processo novo, copie um YAML de `processos/`, troque trabalhadores, atividades
 (`predecessoras`) e distribuições (`constante`, `uniforme`, `triangular`, `normal`, `exponencial`,
 `weibull`, `lognormal`, `soma`) e preencha `fonte` e `premissas`.
+
+## Reproduzir os resultados do texto
+
+Cada comando imprime uma tabela e grava um CSV em `resultados/`. Padrão: 30 réplicas, semente base 1000.
+
+| Experimento (Tabela 10) | Comando |
+|---|---|
+| Testes automatizados (28) | `.venv/bin/python -m pytest` |
+| E1, E2 — modelos base (Tabelas 12 e 13) | `.venv/bin/python validar.py basico --replicas 20` |
+| Validação M4 (Tabela 7) | `.venv/bin/python validar.py recebimento` |
+| E6 — validação M5 (Tabela 8) | `.venv/bin/python validar.py turnaround` |
+| E3 — empilhadeiras (Tabela 14) | `.venv/bin/python validar.py varredura --processo processos/recebimento_saderova.yaml --variante exp2 --pool empilhadeira --de 1 --ate 4 --replicas 20` |
+| E4 — conferentes (Tabela 15) | `.venv/bin/python validar.py varredura --processo processos/recebimento_saderova.yaml --variante exp2 --pool conferente --de 8 --ate 20 --replicas 20` |
+| E7 — alocação (Tabela 17) | `.venv/bin/python validar.py otimizar --processo processos/recebimento_saderova.yaml --variante exp2 --limite-espera 120` |
+| E8 — linha de montagem (Seção 4.1.6) | `.venv/bin/python validar.py salbp --arquivo processos/salbp/P25_14_ROSZIEG.alb --otimo 10` |
+| E9 — escalabilidade (Figura 14) | `.venv/bin/python validar.py escalabilidade` |
+
+Depois de rodar, `gerar_graficos.py` refaz as figuras de `resultados/graficos/` e
+`gerar_excel_escalabilidade.py` refaz `resultados/escalabilidade.xlsx`.
+Os tempos de execução dependem da máquina; os demais resultados são idênticos para a mesma semente.
+
+## Estrutura
+
+```
+app.py                     página principal (modelos M1–M3)
+pages/1_Processos_reais.py página dos modelos M4 e M5
+style.css, .streamlit/     visual e temas claro/escuro
+validar.py                 linha de comando dos experimentos
+gerar_graficos.py          figuras a partir dos CSVs
+gerar_excel_escalabilidade.py  planilha de escalabilidade
+processos/                 processos em YAML e instâncias SALBP
+resultados/                CSVs, figuras e planilhas geradas
+tests/                     testes (pytest)
+src/
+  domain.py, rede.py, simulacao.py, analise.py   modelos base M1–M3
+  processo.py      distribuições, trabalhadores, atividades e leitura do YAML
+  motor.py         simulação SimPy genérica (junção AND, trabalhadores com nome)
+  estrutural.py    capacidade por grupo, caminho crítico (CPM) e corte mínimo (Edmonds-Karp)
+  replicacoes.py   réplicas, IC 95% e varredura do nº de trabalhadores
+  otimizacao.py    alocação: busca exaustiva, gulosa e recozimento simulado
+  salbp.py         leitura de instâncias SALBP e atribuição de estações
+  escalabilidade.py processos sintéticos para medir tempo e memória
+  grafo_processo.py desenho do grafo dos processos reais
+  ui.py            cards, gráficos e temas
+```

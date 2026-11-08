@@ -10,12 +10,11 @@ Todas as durações do arquivo usam a mesma unidade de tempo (campo unidade_temp
 import copy
 import math
 import random
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
 import yaml
-
-ILIMITADO = 10 ** 6  # pool sem limite de trabalhadores (só para atrasos puros)
 
 
 # ---------------------------------------------------------------- distribuições
@@ -182,18 +181,27 @@ class Processo:
         if len(ordem) != len(self.atividades):
             raise ValueError("O grafo de atividades tem ciclo")
 
+    def sucessoras(self) -> Dict[str, List[str]]:
+        """Atividades que dependem de cada uma (o inverso de 'predecessoras'), em O(V + E)."""
+        suc = {i: [] for i in self.atividades}
+        for a in self.atividades.values():
+            for p in a.predecessoras:
+                suc[p].append(a.id)
+        return suc
+
     def ordem_topologica(self) -> List[str]:
+        """Algoritmo de Kahn em O(V + E): tira quem não tem predecessora pendente, uma por vez."""
         grau = {i: len(a.predecessoras) for i, a in self.atividades.items()}
-        prontos = [i for i, g in grau.items() if g == 0]
+        suc = self.sucessoras()
+        prontos = deque(i for i, g in grau.items() if g == 0)
         ordem = []
         while prontos:
-            i = prontos.pop(0)
+            i = prontos.popleft()
             ordem.append(i)
-            for j, a in self.atividades.items():
-                if i in a.predecessoras:
-                    grau[j] -= 1
-                    if grau[j] == 0:
-                        prontos.append(j)
+            for j in suc[i]:
+                grau[j] -= 1
+                if grau[j] == 0:
+                    prontos.append(j)
         if len(ordem) != len(self.atividades):
             raise ValueError("O grafo de atividades tem ciclo")
         return ordem
