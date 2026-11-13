@@ -1,3 +1,11 @@
+"""
+Alocação de trabalhadores: o vetor q = (q1, ..., qk) de menor custo C(q) = Σ qp (com cp = 1)
+cuja espera média, estimada por simulação, não passa de um limite L.
+
+Restrição: a média das esperas médias dos grupos tem que ficar ≤ L.
+Cada candidato é simulado com as mesmas sementes e o resultado fica guardado em cache, então
+uma alocação repetida não é simulada de novo. Os três métodos estão em busca_otimizada().
+"""
 import math
 import random
 import time
@@ -20,15 +28,39 @@ def _avaliar(proc, alocacao, replicas, seed):
 
 
 def busca_otimizada(proc, limite_espera, max_por_pool=24, replicas=30, seed=1000, metodo="exaustiva"):
+    """
+    Procura a menor alocação (soma de trabalhadores) com espera média ≤ limite_espera.
+    O que cada método faz de fato:
+
+    - exaustiva: avalia todas as combinações de 1 a max_por_pool por grupo (24 × 24 = 576 no M4)
+      e fica com a viável de menor custo, desempatando pela menor espera. Depois reavalia a
+      escolhida uma vez, o que dá 577 avaliações. Equivale a "ordenar por custo e pegar a
+      primeira viável".
+    - gulosa: parte de 1 trabalhador por grupo. Enquanto a solução é inviável, testa +1 em cada
+      grupo e fica com o reforço que mais reduz a espera (na prática, reforça o gargalo
+      dinâmico). Cada iteração custa k avaliações dos vizinhos mais 1 reavaliação da escolhida,
+      e há 1 avaliação inicial e 1 final. No M4 (k = 2): 1 + 20×3 + 1 = 62 no limite de 120 s
+      e 1 + 14×3 + 1 = 44 no de 200 s.
+    - recozimento: parte de uma alocação sorteada pela semente, faz 80 iterações com vizinho ±1
+      em um grupo, soma 10.000 de penalidade às soluções inviáveis e esfria a temperatura de
+      forma geométrica (fator 0,92). Dá 81 avaliações.
+
+    "avaliacoes" conta toda chamada a avaliar(), inclusive as atendidas pelo cache;
+    "simulacoes_distintas" conta só as alocações que de fato foram simuladas.
+    """
     inicio = time.perf_counter()
     pools = list(proc.trabalhadores)
     rng = random.Random(seed)
     avaliacoes = 0
+    cache = {}  # alocação (tupla) -> (espera média, custo); as sementes são fixas, então é determinístico
 
     def avaliar(alocacao):
         nonlocal avaliacoes
         avaliacoes += 1
-        espera, custo = _avaliar(proc, dict(zip(pools, alocacao)), replicas, seed)
+        chave = tuple(alocacao)
+        if chave not in cache:
+            cache[chave] = _avaliar(proc, dict(zip(pools, chave)), replicas, seed)
+        espera, custo = cache[chave]
         return espera <= limite_espera, espera, custo
 
     if metodo == "gulosa":
@@ -100,5 +132,6 @@ def busca_otimizada(proc, limite_espera, max_por_pool=24, replicas=30, seed=1000
         "espera": espera,
         "viavel": viavel,
         "avaliacoes": avaliacoes,
+        "simulacoes_distintas": len(cache),
         "tempo": tempo,
     }
