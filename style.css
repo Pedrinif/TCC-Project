@@ -35,7 +35,8 @@ html, body, [class*="css"], .stApp {
   margin-bottom: 6px;
 }
 .main-title h1 {
-  font-size: 44px;
+  font-size: clamp(24px, 2.8vw, 34px);
+  line-height: 1.2;
   font-weight: 800;
   background: linear-gradient(90deg, var(--accent), #a371f7);
   -webkit-background-clip: text;
@@ -43,7 +44,7 @@ html, body, [class*="css"], .stApp {
   background-clip: text;
   margin: 0;
   padding: 0;
-  letter-spacing: 1px;
+  letter-spacing: 0.3px;
 }
 .main-title .subtitle {
   color: var(--text);
