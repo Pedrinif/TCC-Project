@@ -8,7 +8,7 @@ fonte: >-
 unidade_tempo: min
 premissas:
   - "Tempos médios por atividade: Tabela 1 do artigo (100%, 90% e 75% de ocupação)."
-  - "O artigo modela os tempos com Weibull; o parâmetro de forma NÃO está no texto lido. Adotado forma = 7, CALIBRADO para reproduzir as frequências de caminho crítico da Tabela 2 do artigo (forma 5 dá 99,5/95,5/88,2%; forma 7 dá ~99,7/99,3/95,4%). Os tempos totais (34/31/28 min) quase não dependem dessa escolha."
+  - "O artigo modela os tempos com Weibull; o parâmetro de forma NÃO está no texto lido. Adotado forma = 7, CALIBRADO para reproduzir as frequências de caminho crítico da Tabela 2 do artigo (forma 5 dá 99,5/95,5/88,2%; forma 7 dá 100/100/100% com 30 réplicas (Tabela 8) e 99,5/99,0/96,5% com 200 réplicas (Seção 4.1.4)). Os tempos totais (34/31/28 min) quase não dependem dessa escolha."
   - "A estrutura de precedência foi inferida do texto do artigo: 5 caminhos (desembarque -> limpeza -> embarque; catering; descarga -> carga de bagagem; combustível; manutenção). Se o caminho crítico diferir do original, a causa é essa inferência."
   - "Equipes: uma por caminho (limpeza, catering, bagagem, combustível, manutenção); desembarque e embarque disputam a mesma ponte/porta. Dimensionamento das equipes é premissa nossa."
 

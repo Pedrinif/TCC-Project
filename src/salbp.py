@@ -8,7 +8,6 @@ são determinísticos; aqui acrescentamos variabilidade (triangular) para simula
 Formatos aceitos por ler_instancia():
   - formato simples (.IN2):  n / n tempos (um por linha) / pares "i,j" / "0,0" ou "-1,-1"
   - formato ALB (.alb) com seções <number of tasks>, <task times>, <precedence relations>
-Confira com um arquivo real baixado do site; se o formato diferir, me avise.
 """
 import math
 import re
