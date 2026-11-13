@@ -8,6 +8,7 @@ Análise estrutural (sem simular): onde o processo é limitado só pela sua estr
   um par de vértices (entrada → saída) cuja aresta tem a capacidade da atividade,
   então o corte mínimo aponta o gargalo sozinho, sem o usuário escolher a aresta.
 """
+import math
 from typing import Dict, Optional
 
 import networkx as nx
@@ -35,6 +36,21 @@ def capacidade_por_pool(proc: Processo) -> Dict[str, float]:
         t = proc.trabalhadores[pid]
         cap[pid] = INF if (t.ilimitado or c <= 0) else t.quantidade / c
     return cap
+
+
+def trabalhadores_necessarios(proc: Processo) -> Dict[str, Optional[int]]:
+    """
+    Quantos trabalhadores cada grupo limitado precisa para não ser o limite da vazão:
+    ⌈carga(p) × V⌉, com V = menor capacidade entre os OUTROS grupos (sem contar p).
+    No M4, a conferente dá ⌈600 × (1/35,5)⌉ = ⌈16,9⌉ = 17. Sem outro grupo limitado: None.
+    """
+    carga, cap = carga_por_pool(proc), capacidade_por_pool(proc)
+    limitados = [p for p, c in cap.items() if c != INF]
+    necessarios = {}
+    for p in limitados:
+        outras = [cap[o] for o in limitados if o != p]
+        necessarios[p] = math.ceil(round(carga[p] * min(outras), 9)) if outras else None
+    return necessarios
 
 
 def gargalo_por_capacidade(proc: Processo) -> dict:
@@ -119,6 +135,7 @@ def analise_estrutural(proc: Processo) -> dict:
     """Junta tudo para exibir/exportar."""
     return {
         "capacidades": capacidade_por_pool(proc),
+        "trabalhadores_necessarios": trabalhadores_necessarios(proc),
         "gargalo_capacidade": gargalo_por_capacidade(proc),
         "cpm": cpm(proc),
         "corte_minimo": corte_minimo(proc),
