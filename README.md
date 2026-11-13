@@ -53,11 +53,11 @@ Cada comando imprime uma tabela e grava um CSV em `resultados/`. Padrão: 30 ré
 
 | Experimento | Tabela / seção do texto | Comando |
 |---|---|---|
-| Testes automatizados (28) | Seção 4.1 | `.venv/bin/python -m pytest` |
+| Testes automatizados (28) | Seção 4.1.1 | `.venv/bin/python -m pytest` |
 | Verificação das filas M/M/1 e M/M/2 | Tabela 6 | `.venv/bin/python validar.py filas` |
 | Validação M4 | Tabela 7 | `.venv/bin/python validar.py recebimento` |
 | E6, validação M5 (30 réplicas) | Tabela 8 | `.venv/bin/python validar.py turnaround --replicas 30` |
-| M5 com 200 réplicas | Seção 4.1.4 | `.venv/bin/python validar.py turnaround --replicas 200` |
+| M5 com 200 réplicas | Seções 4.1.1 e 4.1.4 | `.venv/bin/python validar.py turnaround --replicas 200` |
 | E1, E2, modelos base | Tabelas 12 e 13 | `.venv/bin/python validar.py basico --replicas 20` |
 | E3, empilhadeiras | Tabela 14 | `.venv/bin/python validar.py varredura --processo processos/recebimento_saderova.yaml --variante exp2 --pool empilhadeira --de 1 --ate 4 --replicas 20` |
 | E4, conferentes | Tabela 15 | `.venv/bin/python validar.py varredura --processo processos/recebimento_saderova.yaml --variante exp2 --pool conferente --de 8 --ate 20 --replicas 20` |
