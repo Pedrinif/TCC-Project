@@ -7,6 +7,8 @@ Uso (a partir da raiz do projeto):
   python validar.py salbp --arquivo processos/salbp/P25_14_ROSZIEG.alb --otimo 10
   python validar.py varredura --processo processos/recebimento_saderova.yaml \
          --pool empilhadeira --de 1 --ate 4 --limite-espera 120
+  python validar.py intervencoes --replicas 200      # Tabela 16 (turnaround)
+  python validar.py filas                            # Tabela 6 (M/M/1 e M/M/2)
 
 Opções comuns: --replicas N (padrão 30), --seed S (padrão 1000).
 Cada comando imprime uma tabela e grava um CSV em resultados/.
@@ -22,6 +24,7 @@ from src.replicacoes import agregar, executar_replicas, ic95, recomendar, varrer
 from src.salbp import atribuir_estacoes, ler_instancia, limite_inferior, processo_da_linha
 from src.otimizacao import busca_otimizada
 from src.escalabilidade import executar_benchmark, expoentes
+from src.filas import espera_simulada, espera_teorica
 from src.rede import LinhaProducao
 from src.simulacao import MotorDES
 
@@ -39,22 +42,22 @@ def _fmt(media, meia, casas=1):
     return f"{media:.{casas}f} ± {meia:.{casas}f}" if meia == meia else f"{media:.{casas}f}"
 
 
-def cmd_basico(a):
+def calcular_basico(replicas, seed):
+    """Tabelas 12 e 13: espera por capacidade nos modelos M1–M3 (300 paletes por réplica)."""
     linhas = []
     presets = {
         "simples": ("M1 Simples", range(1, 9)),
         "multiplas_docas": ("M2 Multiplas Docas", range(3, 6)),
         "pipeline": ("M3 Pipeline", range(3, 6)),
     }
-    print(f"MODELOS BASE — 300 paletes por replica, seeds {a.seed}–{a.seed + a.replicas - 1}")
     for preset, (modelo, capacidades) in presets.items():
         for capacidade in capacidades:
             resultados = []
-            for replica in range(a.replicas):
+            for replica in range(replicas):
                 resultado = MotorDES(
                     LinhaProducao(preset, capacidade),
                     300,
-                    seed=a.seed + replica,
+                    seed=seed + replica,
                     medir_memoria=False,
                 ).executar()
                 resultados.append(resultado)
@@ -76,18 +79,23 @@ def cmd_basico(a):
                 "pior_espera_ic": ic_pior,
             })
 
-    df = pd.DataFrame(linhas)
+    return pd.DataFrame(linhas)
+
+
+def cmd_basico(a):
+    print(f"MODELOS BASE — 300 paletes por replica, seeds {a.seed}–{a.seed + a.replicas - 1}")
+    df = calcular_basico(a.replicas, a.seed)
     print(df.round(1).to_string(index=False))
     _salvar(df, "modelos_base.csv")
 
 
-def cmd_recebimento(a):
-    print("RECEBIMENTO DE PALETES — comparação com Saderova et al. (2022)")
+def calcular_recebimento(replicas, seed):
+    """Tabela 7: tempo até a última conferência no M4, contra o publicado por Saderova et al."""
     publicado = {"exp1": (88, 176), "exp2": (128, 188), "exp3": (99, 174)}  # (paletes, minutos)
     linhas = []
     for variante, (paletes, ref) in publicado.items():
         proc = carregar_processo("processos/recebimento_saderova.yaml", variante)
-        rs = executar_replicas(proc, a.replicas, a.seed)
+        rs = executar_replicas(proc, replicas, seed)
         ag = agregar(rs, {
             "ciclo_s": lambda r: r["por_atividade"]["ciclo_empilhadeira"]["duracao_media"],
             "ultimo_aceito_min": lambda r: r["ultimo_fim"] / 60.0,
@@ -100,6 +108,12 @@ def cmd_recebimento(a):
                        "util_empilhadeira": ag["util_empilhadeira"]})
     df = pd.DataFrame(linhas)
     df["diferenca_min"] = df["simulado_min"] - df["publicado_min"]
+    return df
+
+
+def cmd_recebimento(a):
+    print("RECEBIMENTO DE PALETES — comparação com Saderova et al. (2022)")
+    df = calcular_recebimento(a.replicas, a.seed)
     print(df.round(2).to_string(index=False))
     print("\nLeitura: o ciclo médio deve ficar entre 25 e 43 s (faixa medida no artigo).")
     print("O tempo total depende do intervalo entre caminhões (38 min é HIPÓTESE nossa, não está no artigo):")
@@ -107,13 +121,13 @@ def cmd_recebimento(a):
     _salvar(df, "validacao_recebimento.csv")
 
 
-def cmd_turnaround(a):
-    print("TURNAROUND B737-800 — comparação com San Antonio et al. (2017)")
+def calcular_turnaround(replicas, seed):
+    """Tabela 8 (30 réplicas) e Seção 4.1.4 (200): tempo total e criticidade do caminho dos passageiros."""
     publicado = {None: ("100%", 34, 99.91), "ocupacao_90": ("90%", 31, 99.08), "ocupacao_75": ("75%", 28, 94.66)}
     linhas = []
     for variante, (rotulo, ref_total, ref_crit) in publicado.items():
         proc = carregar_processo("processos/turnaround_b737.yaml", variante)
-        rs = executar_replicas(proc, a.replicas, a.seed)
+        rs = executar_replicas(proc, replicas, seed)
         ag = agregar(rs, {
             "total": lambda r: r["ultimo_fim"],
             "crit_limpeza": lambda r: 100 * r["criticidade"]["limpeza"],
@@ -122,28 +136,86 @@ def cmd_turnaround(a):
         linhas.append({"ocupacao": rotulo, "publicado_min": ref_total, "simulado_min": ag["total"],
                        "ic95_min": ag["total_ic"], "critico_caminho_passageiros_pct": ag["crit_limpeza"],
                        "publicado_pct": ref_crit, "critico_bagagem_pct": ag["crit_bagagem"]})
-    df = pd.DataFrame(linhas)
+    return pd.DataFrame(linhas)
+
+
+def cmd_turnaround(a):
+    print("TURNAROUND B737-800 — comparação com San Antonio et al. (2017)")
+    df = calcular_turnaround(a.replicas, a.seed)
     print(df.round(2).to_string(index=False))
     est = analise_estrutural(carregar_processo("processos/turnaround_b737.yaml"))
     print(f"\nCPM (durações médias, 100%): {est['cpm']['duracao_minima']:.1f} min; "
           f"atividades críticas: {est['cpm']['atividades_criticas']}")
     print("Premissas nossas que influenciam a comparação: forma da Weibull (=7, calibrada na Tabela 2) e a estrutura dos 5 caminhos (confira na Figura 2 do artigo).")
-    _salvar(df, "validacao_turnaround.csv")
+    # o arquivo leva o nº de réplicas no nome: validacao_turnaround.csv (200) é lido por gerar_graficos.py
+    _salvar(df, f"validacao_turnaround_{a.replicas}rep.csv")
 
 
-def cmd_salbp(a):
-    inst = ler_instancia(a.arquivo)
-    ciclo = a.ciclo or inst["ciclo"]
+# (rótulo da Tabela 16, intervenção sobre o turnaround base)
+INTERVENCOES = [
+    ("Base (100% de ocupação)", lambda p: None),
+    ("Equipe de limpeza de 1 para 2", lambda p: p.definir_quantidade("equipe_limpeza", 2)),
+    ("Abastecimento 50% mais rápido", lambda p: p.escalar_duracao("combustivel", 0.5)),
+    ("Limpeza 20% mais rápida", lambda p: p.escalar_duracao("limpeza", 0.8)),
+    ("Embarque 20% mais rápido", lambda p: p.escalar_duracao("embarque", 0.8)),
+    ("Catering 50% mais lento (22,5 min)", lambda p: p.escalar_duracao("catering", 1.5)),
+    ("Catering 150% mais lento (37,5 min)", lambda p: p.escalar_duracao("catering", 2.5)),
+]
+
+
+def calcular_intervencoes(replicas, seed):
+    """Tabela 16: efeito de cada intervenção no tempo total e em quanto o caminho dos passageiros e o catering são críticos."""
+    linhas = []
+    for rotulo, aplicar in INTERVENCOES:
+        proc = carregar_processo("processos/turnaround_b737.yaml")
+        aplicar(proc)
+        ag = agregar(executar_replicas(proc, replicas, seed), {
+            "total": lambda r: r["ultimo_fim"],
+            "passageiros": lambda r: 100 * r["criticidade"]["limpeza"],
+            "catering": lambda r: 100 * r["criticidade"]["catering"],
+        })
+        linhas.append({"intervencao": rotulo, "tempo_total_min": ag["total"], "tempo_total_ic": ag["total_ic"],
+                       "pct_passageiros_critico": ag["passageiros"], "pct_catering_critico": ag["catering"]})
+    return pd.DataFrame(linhas)
+
+
+def cmd_intervencoes(a):
+    print(f"TURNAROUND B737-800 — intervenções por atividade ({a.replicas} réplicas, semente base {a.seed})")
+    df = calcular_intervencoes(a.replicas, a.seed)
+    print(df.round(2).to_string(index=False))
+    _salvar(df, "intervencoes_turnaround.csv")
+
+
+def calcular_filas(replicas=12, n=6000, seed_base=100):
+    """Tabela 6: espera média na fila, simulada contra a fórmula (M/M/1 e M/M/2)."""
+    linhas = []
+    for lam, mu, c in ((0.7, 1.0, 1), (1.4, 1.0, 2)):
+        teorico = espera_teorica(lam, mu, c)
+        media, meia = espera_simulada(lam, mu, c, n, replicas, seed_base)
+        linhas.append({"lambda": lam, "mu": mu, "servidores": c, "rho": lam / (c * mu),
+                       "wq_teorico": teorico, "wq_simulado": media, "wq_simulado_ic": meia,
+                       "erro_relativo_pct": 100 * abs(media - teorico) / teorico})
+    return pd.DataFrame(linhas)
+
+
+def cmd_filas(a):
+    print("VERIFICAÇÃO DAS FILAS — M/M/1 e M/M/2 (6.000 entidades, 12 réplicas, semente base 100)")
+    df = calcular_filas()
+    print(df.round(3).to_string(index=False))
+    _salvar(df, "verificacao_filas.csv")
+
+
+def calcular_salbp(arquivo, ciclo, variabilidade, n_produtos, replicas, seed, otimo):
+    """Seção 4.1.6: estações pela heurística RPW e simulação da linha. Devolve (tabela, vazão/tempo, estações, limite, ciclo)."""
+    inst = ler_instancia(arquivo)
+    ciclo = ciclo or inst["ciclo"]
     if not ciclo:
         raise SystemExit("Informe --ciclo (a instância não traz o tempo de ciclo)")
     est = atribuir_estacoes(inst["tempos"], inst["precedencias"], ciclo)
     lb = limite_inferior(inst["tempos"], ciclo)
-    print(f"LINHA DE MONTAGEM — {os.path.basename(a.arquivo)}  (ciclo = {ciclo})")
-    print(f"Estações pela heurística RPW: {len(est)}  |  limite inferior (soma/ciclo): {lb}")
-    print("Compare com o número ótimo de estações da instância no site (assembly-line-balancing.de).")
-    proc = processo_da_linha(inst["tempos"], est, ciclo, a.variabilidade, a.n_produtos,
-                             nome=os.path.basename(a.arquivo), fonte="Instância SALBP (Scholl)")
-    rs = executar_replicas(proc, a.replicas, a.seed, descartar=0.1)
+    proc = processo_da_linha(inst["tempos"], est, ciclo, variabilidade, n_produtos,
+                             nome=os.path.basename(arquivo), fonte="Instância SALBP (Scholl)")
+    rs = executar_replicas(proc, replicas, seed, descartar=0.1)
     linhas = []
     for k, tarefas in enumerate(est):
         pid, aid = f"op_E{k+1}", f"E{k+1}"
@@ -153,18 +225,27 @@ def cmd_salbp(a):
                        "carga_nominal": sum(inst["tempos"][t] for t in tarefas),
                        "utilizacao": ag["util"], "espera_media_na_fila": ag["espera"]})
     df = pd.DataFrame(linhas)
-    print(df.round(3).to_string(index=False))
     v = agregar(rs, {"vazao": lambda r: r["vazao"], "ts": lambda r: r["tempo_sistema_medio"]})
+    # dados da instância em todas as linhas, para o CSV se explicar sozinho (Figura 13 do texto)
+    df.insert(0, "instancia", os.path.splitext(os.path.basename(arquivo))[0])
+    df.insert(1, "tempo_ciclo", ciclo)
+    df.insert(2, "estacoes_heuristica", len(est))
+    df.insert(3, "numero_otimo", otimo)
+    df.insert(4, "limite_inferior", lb)
+    df["vazao_simulada"], df["vazao_simulada_ic"], df["vazao_teorica"] = v["vazao"], v["vazao_ic"], 1 / ciclo
+    return df, v, est, lb, ciclo
+
+
+def cmd_salbp(a):
+    df, v, est, lb, ciclo = calcular_salbp(a.arquivo, a.ciclo, a.variabilidade, a.n_produtos,
+                                           a.replicas, a.seed, a.otimo)
+    print(f"LINHA DE MONTAGEM — {os.path.basename(a.arquivo)}  (ciclo = {ciclo})")
+    print(f"Estações pela heurística RPW: {len(est)}  |  limite inferior (soma/ciclo): {lb}")
+    print("Compare com o número ótimo de estações da instância no site (assembly-line-balancing.de).")
+    print(df[["estacao", "tarefas", "carga_nominal", "utilizacao", "espera_media_na_fila"]].round(3).to_string(index=False))
     print(f"\nVazão simulada: {_fmt(v['vazao'], v['vazao_ic'], 4)} produtos/u.t. (meta 1/ciclo = {1/ciclo:.4f})")
     print(f"Tempo médio no sistema: {_fmt(v['ts'], v['ts_ic'], 2)} u.t.")
     print("Estação com maior espera na fila = gargalo dinâmico; compare com a de maior carga nominal.")
-    # dados da instância em todas as linhas, para o CSV se explicar sozinho (Figura 13 do texto)
-    df.insert(0, "instancia", os.path.splitext(os.path.basename(a.arquivo))[0])
-    df.insert(1, "tempo_ciclo", ciclo)
-    df.insert(2, "estacoes_heuristica", len(est))
-    df.insert(3, "numero_otimo", a.otimo)
-    df.insert(4, "limite_inferior", lb)
-    df["vazao_simulada"], df["vazao_simulada_ic"], df["vazao_teorica"] = v["vazao"], v["vazao_ic"], 1 / ciclo
     _salvar(df, "validacao_salbp.csv")
 
 
@@ -261,6 +342,11 @@ def main():
     sub.add_parser("basico", parents=[pai]).set_defaults(f=cmd_basico)
     sub.add_parser("recebimento", parents=[pai]).set_defaults(f=cmd_recebimento)
     sub.add_parser("turnaround", parents=[pai]).set_defaults(f=cmd_turnaround)
+    i = sub.add_parser("intervencoes")
+    i.add_argument("--replicas", type=int, default=200)
+    i.add_argument("--seed", type=int, default=1000)
+    i.set_defaults(f=cmd_intervencoes)
+    sub.add_parser("filas").set_defaults(f=cmd_filas)
     s = sub.add_parser("salbp", parents=[pai])
     s.add_argument("--arquivo", required=True)
     s.add_argument("--ciclo", type=float)
