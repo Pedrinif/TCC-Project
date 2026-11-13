@@ -26,7 +26,7 @@ from src.motor import MotorProcesso  # noqa: E402
 from src.processo import carregar_processo  # noqa: E402
 from src.replicacoes import agregar, executar_replicas, recomendar, resumo_medio, varrer_pool  # noqa: E402
 
-st.set_page_config(page_title="Processos reais · ECOMUP", page_icon=":material/hub:", layout="wide")
+st.set_page_config(page_title="ECOMUP · Processos reais", page_icon=":material/hub:", layout="wide")
 with open(RAIZ / "style.css", encoding="utf-8") as f:
     ui.html(f"<style>{ui.css_do_tema()}{f.read()}</style>")
 
@@ -218,10 +218,11 @@ def aba_estrutural(proc):
     ui.titulo_secao("architecture", "Análise estrutural", "SEM SIMULAR",
                     "O que a estrutura do processo já limita: capacidade de cada grupo de trabalhadores, "
                     "caminho crítico (CPM) e, para cadeias, o corte mínimo.")
-    cap = est["capacidades"]
+    cap, minimo = est["capacidades"], est["trabalhadores_necessarios"]
     st.dataframe(pd.DataFrame([{
         "Pool": proc.trabalhadores[p].funcao, "Quantidade": proc.trabalhadores[p].quantidade,
         f"Capacidade (entidades/{un})": "ilimitada" if c == float("inf") else round(c, 5),
+        "Mínimo para não limitar a vazão": minimo.get(p) if minimo.get(p) is not None else "—",
     } for p, c in cap.items()]), hide_index=True, width="stretch")
     gc = est["gargalo_capacidade"]
     if gc["pool"]:
@@ -253,7 +254,7 @@ def aba_varredura(proc, op):
     pool = c1.selectbox("Grupo", usados, format_func=lambda p: proc.trabalhadores[p].funcao)
     de = c2.number_input("De", 1, 100, 1, 1)
     ate = c3.number_input("Até", 1, 100, 6, 1)
-    reps = c4.number_input("Réplicas por ponto", 2, 100, 10, 1)
+    reps = c4.number_input("Réplicas por ponto", 2, 100, 20, 1)
     limite = c5.number_input(f"Espera máxima aceita ({un})", 0.0, 1e6, 0.0, 1.0)
     if st.button(":material/play_arrow: Executar varredura"):
         if ate < de:
@@ -318,9 +319,9 @@ def excel(proc, resumos, op) -> bytes:
 # ---------------------------------------------------------------- página
 ui.html(f"""
 <div class="main-title">
-  <div class="eyebrow">Modelos M4 e M5 · processos documentados</div>
-  <h1>Processos reais</h1>
-  <div class="subtitle">Escolha um processo, mude a quantidade de trabalhadores e os tempos, e veja
+  <div class="eyebrow">ECOMUP · Modelos M4 e M5 · processos documentados</div>
+  <h1>Estudo Computacional de Otimização em Metodologias Utilizadas em Processos Industriais</h1>
+  <div class="subtitle"><b>Processos reais:</b> escolha um processo, mude a quantidade de trabalhadores e os tempos, e veja
   <b>onde está o gargalo</b> no grafo.</div>
 </div>""")
 

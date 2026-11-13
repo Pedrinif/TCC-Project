@@ -1,6 +1,6 @@
 """
-TCC - Estudo Computacional de Otimização em Metodologias Industriais
-Miguel de Paula e Pedro Nassif
+Estudo Computacional de Otimização em Metodologias Utilizadas em Processos Industriais
+Miguel de Paulo Leite de Oliveira e Pedro Lauria Nassif · Orientador: Prof. Me. Julio Cesar Gonçalves
 
 Tela principal (Streamlit). A lógica fica em src/:
   rede.py      -> grafo do armazém e fluxo máximo / corte mínimo
@@ -17,7 +17,7 @@ from src.simulacao import MotorDES, executar_analise_comparativa
 from src.analise import AnalisadorResultados
 from src import ui
 
-st.set_page_config(page_title="ECOMUP Project", page_icon=":material/hub:", layout="wide")
+st.set_page_config(page_title="ECOMUP", page_icon=":material/hub:", layout="wide")
 with open("style.css", encoding="utf-8") as f:
     ui.html(f"<style>{ui.css_do_tema()}{f.read()}</style>")
 
@@ -25,13 +25,13 @@ with open("style.css", encoding="utf-8") as f:
 def cabecalho():
     ui.html("""
     <div class="main-title">
-      <div class="eyebrow">Trabalho de Graduação · Engenharia de Computação</div>
-      <h1>ECOMUP Project</h1>
+      <div class="eyebrow">ECOMUP · Trabalho de Graduação · Engenharia de Computação</div>
+      <h1>Estudo Computacional de Otimização em Metodologias Utilizadas em Processos Industriais</h1>
       <div class="subtitle">
         Simulador de fluxo de paletes em um armazém industrial — encontra
         <b>onde o processo trava (gargalo)</b> e <b>quanto isso custa em tempo de espera</b>.
       </div>
-      <div class="authors">Miguel de Paula · Pedro Nassif</div>
+      <div class="authors">Miguel de Paulo Leite de Oliveira · Pedro Lauria Nassif · Orientador: Prof. Me. Julio Cesar Gonçalves</div>
     </div>""")
 
 
@@ -187,7 +187,7 @@ def aba_rede(resultado, linha):
     with st.expander(":material/table_chart: Tabela do grafo — vértices e arestas"):
         st.dataframe(pd.DataFrame([
             {"Vértice": no.id, "Tipo": no.tipo, "Capacidade": linha.capacidade_efetiva(no.id),
-             "T. processamento": f"{no.tempo_proc_base} min"}
+             "T. processamento": f"{no.tempo_proc_base} u.t."}
             for no in linha.nos.values()
         ]), hide_index=True, width="stretch")
         st.dataframe(pd.DataFrame([
@@ -198,7 +198,7 @@ def aba_rede(resultado, linha):
 
 
 def aba_tecnico(resultado, linha, logs, params):
-    ui.titulo_secao("bolt", "Desempenho Computacional", "FOCO DO TCC",
+    ui.titulo_secao("bolt", "Desempenho Computacional", "ESCALABILIDADE",
                     "Quão rápido e leve é o simulador — mostra que a abordagem escala.")
     ms = resultado.tempo_execucao_seg * 1000
     c1, c2, c3 = st.columns(3)
@@ -207,7 +207,7 @@ def aba_tecnico(resultado, linha, logs, params):
     with c2:
         ui.card("Pico de RAM", f"{resultado.pico_memoria_kb:.1f} KB", "medido com tracemalloc", "good")
     with c3:
-        ui.card("Throughput", f"{resultado.paletes_entregues / max(ms, 1e-6):.0f}", "paletes processados por ms", "good")
+        ui.card("Paletes simulados por ms", f"{resultado.paletes_entregues / max(ms, 1e-6):.0f}", "velocidade do simulador", "good")
 
     st.dataframe(pd.DataFrame({
         "Parâmetro": ["Topologia", "Volume N", "Capacidade c(u,v)", "Semente", "Gargalo"],
