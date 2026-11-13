@@ -14,7 +14,7 @@ e estima quantos trabalhadores alocar em cada grupo.
 ## Como abrir o programa
 
 ```bash
-cd /Users/pedronassif/Documents/Projetos/TCC-Project && .venv/bin/streamlit run app.py
+cd TCC-Project && .venv/bin/streamlit run app.py
 ```
 
 Depois abra `http://localhost:8501` no navegador. Para fechar, `Ctrl + C` no terminal.
@@ -51,17 +51,28 @@ Para modelar um processo novo, copie um YAML de `processos/`, troque trabalhador
 
 Cada comando imprime uma tabela e grava um CSV em `resultados/`. Padrão: 30 réplicas, semente base 1000.
 
-| Experimento (Tabela 10) | Comando |
-|---|---|
-| Testes automatizados (28) | `.venv/bin/python -m pytest` |
-| E1, E2 — modelos base (Tabelas 12 e 13) | `.venv/bin/python validar.py basico --replicas 20` |
-| Validação M4 (Tabela 7) | `.venv/bin/python validar.py recebimento` |
-| E6 — validação M5 (Tabela 8) | `.venv/bin/python validar.py turnaround` |
-| E3 — empilhadeiras (Tabela 14) | `.venv/bin/python validar.py varredura --processo processos/recebimento_saderova.yaml --variante exp2 --pool empilhadeira --de 1 --ate 4 --replicas 20` |
-| E4 — conferentes (Tabela 15) | `.venv/bin/python validar.py varredura --processo processos/recebimento_saderova.yaml --variante exp2 --pool conferente --de 8 --ate 20 --replicas 20` |
-| E7 — alocação (Tabela 17) | `.venv/bin/python validar.py otimizar --processo processos/recebimento_saderova.yaml --variante exp2 --limite-espera 120 --replicas 5` |
-| E8 — linha de montagem (Seção 4.1.6) | `.venv/bin/python validar.py salbp --arquivo processos/salbp/P25_14_ROSZIEG.alb --otimo 10` |
-| E9 — escalabilidade (Figura 14) | `.venv/bin/python validar.py escalabilidade` |
+| Experimento | Tabela / seção do texto | Comando |
+|---|---|---|
+| Testes automatizados (28) | Seção 4.1 | `.venv/bin/python -m pytest` |
+| Verificação das filas M/M/1 e M/M/2 | Tabela 6 | `.venv/bin/python validar.py filas` |
+| Validação M4 | Tabela 7 | `.venv/bin/python validar.py recebimento` |
+| E6, validação M5 (30 réplicas) | Tabela 8 | `.venv/bin/python validar.py turnaround --replicas 30` |
+| M5 com 200 réplicas | Seção 4.1.4 | `.venv/bin/python validar.py turnaround --replicas 200` |
+| E1, E2, modelos base | Tabelas 12 e 13 | `.venv/bin/python validar.py basico --replicas 20` |
+| E3, empilhadeiras | Tabela 14 | `.venv/bin/python validar.py varredura --processo processos/recebimento_saderova.yaml --variante exp2 --pool empilhadeira --de 1 --ate 4 --replicas 20` |
+| E4, conferentes | Tabela 15 | `.venv/bin/python validar.py varredura --processo processos/recebimento_saderova.yaml --variante exp2 --pool conferente --de 8 --ate 20 --replicas 20` |
+| E5, intervenções no turnaround | Tabela 16 | `.venv/bin/python validar.py intervencoes` (200 réplicas) |
+| E7, alocação (a Tabela 17 foi gerada com **5 réplicas**) | Tabela 17 | `.venv/bin/python validar.py otimizar --processo processos/recebimento_saderova.yaml --variante exp2 --limite-espera 120 --replicas 5` e o mesmo com `--limite-espera 200` |
+| E7, recozimento com as sementes 1000 a 1009 | Seção 4.1.5 | os mesmos comandos, com `--sa-sementes 10` (limites de 120 e de 200) |
+| E8, linha de montagem | Seção 4.1.6 | `.venv/bin/python validar.py salbp --arquivo processos/salbp/P25_14_ROSZIEG.alb --otimo 10` |
+| E9, escalabilidade | Figura 14 | `.venv/bin/python validar.py escalabilidade` (não rode se quiser manter os CSVs do texto: os tempos dependem da máquina) |
+
+Para conferir tudo de uma vez contra os números do texto (não grava nada em `resultados/`):
+
+```bash
+.venv/bin/python conferir_texto.py             # conferências rápidas
+.venv/bin/python conferir_texto.py --completo  # inclui a Tabela 17 e o recozimento com 10 sementes
+```
 
 Depois de rodar, `gerar_graficos.py` refaz as figuras de `resultados/graficos/` e
 `gerar_excel_escalabilidade.py` refaz `resultados/escalabilidade.xlsx`.
@@ -74,6 +85,7 @@ app.py                     página principal (modelos M1–M3)
 pages/1_Processos_reais.py página dos modelos M4 e M5
 style.css, .streamlit/     visual e temas claro/escuro
 validar.py                 linha de comando dos experimentos
+conferir_texto.py          confere o programa contra os números do texto
 gerar_graficos.py          figuras a partir dos CSVs
 gerar_excel_escalabilidade.py  planilha de escalabilidade
 processos/                 processos em YAML e instâncias SALBP
@@ -86,6 +98,7 @@ src/
   estrutural.py    capacidade por grupo, caminho crítico (CPM) e corte mínimo (Edmonds-Karp)
   replicacoes.py   réplicas, IC 95% e varredura do nº de trabalhadores
   otimizacao.py    alocação: busca exaustiva, gulosa e recozimento simulado
+  filas.py         filas M/M/c com fórmula conhecida (Tabela 6)
   salbp.py         leitura de instâncias SALBP e atribuição de estações
   escalabilidade.py processos sintéticos para medir tempo e memória
   grafo_processo.py desenho do grafo dos processos reais
