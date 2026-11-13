@@ -43,6 +43,63 @@ def barras_agrupadas(
     plt.close(fig)
 
 
+def _salvar(fig, arquivo: str) -> None:
+    fig.tight_layout()
+    fig.savefig(os.path.join(PASTA_GRAFICOS, arquivo), dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
+def figura_espera_conferentes() -> None:
+    """Figura 12: espera média em função do número de conferentes (M4, experimento 2), com faixa de IC."""
+    v = pd.read_csv(os.path.join(PASTA_RESULTADOS, "varredura_conferente.csv"))
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.plot(v["quantidade"], v["espera_pool"], marker="o", linewidth=2, color="#4C78A8")
+    ax.fill_between(v["quantidade"], v["espera_pool"] - v["espera_pool_ic"],
+                    v["espera_pool"] + v["espera_pool_ic"], alpha=0.25, color="#4C78A8", label="IC 95%")
+    ax.set_xlabel("Número de conferentes")
+    ax.set_ylabel("Espera média na conferência (s)")
+    ax.set_title("M4 - Espera média em função do número de conferentes")
+    ax.legend()
+    ax.grid(alpha=0.3)
+    _salvar(fig, "fig12_espera_conferentes.png")
+
+
+def figura_alocacao() -> None:
+    """Figura 9: custo (soma de trabalhadores) e número de avaliações de cada método, nos limites de 120 s e 200 s."""
+    fig, eixos = plt.subplots(2, 2, figsize=(9, 6))
+    for coluna, limite in enumerate((120, 200)):
+        d = pd.read_csv(os.path.join(PASTA_RESULTADOS, f"otimizacao_exp2_{limite}.csv"))
+        eixos[0][coluna].bar(d["Método"], d["Custo"], color="#4C78A8")
+        eixos[0][coluna].set_title(f"Limite de {limite} s")
+        eixos[0][coluna].set_ylabel("Custo (trabalhadores)")
+        eixos[1][coluna].bar(d["Método"], d["Avaliações"], color="#F58518")
+        eixos[1][coluna].set_ylabel("Avaliações")
+        eixos[1][coluna].set_yscale("log")
+        eixos[1][coluna].set_ylim(bottom=1)  # barras partem de 1, senão a escala log corta as menores
+        for linha in (0, 1):
+            eixos[linha][coluna].grid(axis="y", alpha=0.3)
+    fig.suptitle("M4 - Alocação de trabalhadores: custo e avaliações por método")
+    _salvar(fig, "fig09_alocacao_custo_avaliacoes.png")
+
+
+def figura_estacoes_m6() -> None:
+    """Figura 13: utilização e espera média na fila de cada estação da linha de montagem (M6)."""
+    d = pd.read_csv(os.path.join(PASTA_RESULTADOS, "validacao_salbp.csv"))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4.5))
+    ax1.bar(d["estacao"], 100 * d["utilizacao"], color="#4C78A8")
+    ax1.set_xlabel("Estação")
+    ax1.set_ylabel("Utilização (%)")
+    ax1.set_title("Utilização por estação")
+    ax2.bar(d["estacao"], d["espera_media_na_fila"], color="#F58518")
+    ax2.set_xlabel("Estação")
+    ax2.set_ylabel("Espera média na fila (u.t.)")
+    ax2.set_title("Espera por estação")
+    for ax in (ax1, ax2):
+        ax.set_xticks(list(d["estacao"]))
+        ax.grid(axis="y", alpha=0.3)
+    _salvar(fig, "fig13_estacoes_m6.png")
+
+
 def main() -> None:
     os.makedirs(PASTA_GRAFICOS, exist_ok=True)
 
@@ -112,6 +169,10 @@ def main() -> None:
     fig.tight_layout()
     fig.savefig(os.path.join(PASTA_GRAFICOS, "m1_m2_m3_modelos_base.png"), dpi=300, bbox_inches="tight")
     plt.close(fig)
+
+    figura_espera_conferentes()
+    figura_alocacao()
+    figura_estacoes_m6()
 
     print(f"Gráficos salvos em {PASTA_GRAFICOS}")
 
