@@ -151,17 +151,31 @@ def aba_resultados(proc, resumos, op):
     })
     medio = resumo_medio(resumos)
 
-    def pm(chave, casas=2):
-        ic = ag[chave + "_ic"]
-        return f"{ag[chave]:.{casas}f}" + (f" ± {ic:.{casas}f}" if ic == ic else "")
+    def br(x, casas):
+        """Número com vírgula decimal e ponto de milhar (1.079,9)."""
+        return f"{x:,.{casas}f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+    def tempo(chave):
+        """(valor, ± IC, unidade): tempos em segundos acima de 2 min aparecem em minutos, que se lê melhor."""
+        v, ic, u = ag[chave], ag[chave + "_ic"], un
+        if un == "s" and v >= 120:
+            v, ic, u = v / 60, ic / 60, "min"
+        casas = 1 if v >= 100 else 2
+        return br(v, casas), (f"± {br(ic, 2)} {u}" if ic == ic else ""), u
+
+    v_ts, ic_ts, u_ts = tempo("ts")
+    v_fim, ic_fim, u_fim = tempo("fim")
+    vazao, u_vazao = ag["vazao"], f"entidades por {un}"
+    if un == "s":
+        vazao, u_vazao = vazao * 60, "entidades por min"
 
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        ui.card("Tempo médio no sistema", pm("ts"), f"{un} por entidade (IC 95%)", "good")
+        ui.card("Tempo médio no sistema", f"{v_ts} {u_ts}", f"por entidade · IC 95%: {ic_ts}", "good")
     with c2:
-        ui.card("Último término", pm("fim"), f"{un} até a última entidade", "good")
+        ui.card("Último término", f"{v_fim} {u_fim}", f"até a última entidade · IC 95%: {ic_fim}", "good")
     with c3:
-        ui.card("Vazão", f"{ag['vazao']:.4g}", f"entidades por {un} (sobre o tempo simulado)", "good")
+        ui.card("Vazão", br(vazao, 3), f"{u_vazao} (sobre o tempo simulado)", "good")
     g = medio["gargalo"]
     with c4:
         if g is None:
